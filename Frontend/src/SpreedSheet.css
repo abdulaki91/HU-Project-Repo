@@ -1,0 +1,46 @@
+.spreadsheet {
+  overflow: auto;
+  max-width: 100%;
+  border: 1px solid #ccc;
+  font-family: Arial, sans-serif;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  border: 1px solid #ddd;
+  min-width: 80px;
+  height: 25px;
+  text-align: left;
+  padding: 2px 6px;
+}
+
+th {
+  background: #f3f3f3;
+  font-weight: bold;
+  text-align: center;
+}
+
+.corner {
+  background: #f3f3f3;
+  width: 40px;
+}
+
+.row-header {
+  background: #f9f9f9;
+  text-align: center;
+  font-weight: bold;
+  width: 40px;
+}
+
+.cell {
+  background: #fff;
+}
+
+.cell:focus {
+  outline: 2px solid #1a73e8; /* blue border like Google Sheets */
+}

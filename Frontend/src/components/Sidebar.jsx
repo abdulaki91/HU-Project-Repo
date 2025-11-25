@@ -1,4 +1,3 @@
-import React, { useEffect, useState } from "react";
 import {
   Home,
   Upload,
@@ -14,6 +13,7 @@ import {
 import { Button } from "../components/Button";
 import { useTheme } from "../components/ThemeProvider";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 export function Sidebar({
   currentPage,
@@ -24,7 +24,11 @@ export function Sidebar({
 }) {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-
+  const { logout } = useAuth();
+  const logoutUser = () => {
+    logout();
+    navigate("/login");
+  };
   const menuItems = [
     { id: "home", label: "Home", icon: Home },
     { id: "upload", label: "Upload Project", icon: Upload },
@@ -138,7 +142,7 @@ export function Sidebar({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={onLogout}
+                  onClick={logoutUser}
                   className="flex-1 text-xs sm:text-sm md:text-base lg:text-lg 
              px-2 sm:px-3 md:px-4 py-1 sm:py-2 md:py-3 
              dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700 

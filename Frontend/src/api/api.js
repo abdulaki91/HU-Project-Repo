@@ -1,5 +1,5 @@
 import axios from "axios";
-import toast from "react-hot-toast";
+// import toast from "react-hot-toast";
 
 const api = axios.create({
   baseURL: "http://localhost:8000/api", //https://attendio-backend.abdiko.com  //http://localhost:8000/api
@@ -28,7 +28,7 @@ api.interceptors.response.use(
           error.response.status === 401)
       ) {
         isLoggingOut = true; // ✅ Prevent multiple runs
-        toast.error(message || "Session expired, please log in again");
+        // toast.error(message || "Session expired, please log in again");
 
         setTimeout(() => {
           localStorage.removeItem("token");
@@ -36,10 +36,10 @@ api.interceptors.response.use(
           isLoggingOut = false; // reset for future sessions
         }, 2000);
       } else if (message) {
-        toast.error(message);
+        // toast.error(message);
       }
     } else {
-      toast.error("Network error. Please try again.");
+      // toast.error("Network error. Please try again.");
     }
 
     return Promise.reject(error);

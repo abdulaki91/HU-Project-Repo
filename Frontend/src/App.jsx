@@ -1,10 +1,4 @@
-import { useState } from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { Layout } from "./components/Layout";
 
@@ -16,28 +10,21 @@ import { BrowseProjects } from "./pages/BrowseProjects";
 import { Dashboard } from "./pages/Dashboard";
 import { Profile } from "./pages/Profile";
 import { PrivateRoute } from "./components/PrivateRoute";
-
+import { PageNotFound } from "./pages/PgaeNotFound";
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(1);
   return (
     <ThemeProvider>
       <Router>
         <Routes>
           {/* Public routes */}
-          <Route
-            path="/login"
-            element={<Login onLogin={() => setIsAuthenticated(true)} />}
-          />
-          <Route
-            path="/signup"
-            element={<SignUp onSignUp={() => setIsAuthenticated(true)} />}
-          />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<SignUp />} />
 
           {/* Private routes inside Layout */}
           <Route
             element={
-              <PrivateRoute isAuthenticated={isAuthenticated}>
-                <Layout onLogout={() => setIsAuthenticated(false)} />
+              <PrivateRoute>
+                <Layout />
               </PrivateRoute>
             }
           >
@@ -48,11 +35,8 @@ export default function App() {
             <Route path="/profile" element={<Profile />} />
           </Route>
 
-          {/* Fallback */}
-          <Route
-            path="*"
-            element={<Navigate to={isAuthenticated ? "/" : "/login"} />}
-          />
+          {/* Fallback route */}
+          <Route path="*" element={<PageNotFound />} />
         </Routes>
       </Router>
     </ThemeProvider>

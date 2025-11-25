@@ -1,10 +1,12 @@
 import { Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-export function PrivateRoute({ isAuthenticated, children }) {
-  if (!isAuthenticated) {
-    // If user is not logged in, redirect to login
-    return <Navigate to="/login" replace />;
-  }
-  // If authenticated, render the children (the protected page)
+export function PrivateRoute({ children }) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return <div className="text-center mt-20">Loading...</div>;
+
+  if (!user) return <Navigate to="/login" replace />;
+
   return children;
 }

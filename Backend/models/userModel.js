@@ -142,12 +142,20 @@ export const loginQuery = (email) => {
   return db.execute(sql, [email]);
 };
 
-// ✅ Get user by ID
 export const findUserById = async (id) => {
-  const sql = `SELECT firstName, lastName, email, batch, department, role, verified FROM users WHERE id = ?`;
-  const [results] = await db.execute(sql, [id]);
-  return results[0];
+  try {
+    const sql = `SELECT firstName, lastName, email, batch, department, role, verified 
+                 FROM users 
+                 WHERE id = ?`;
+    const [results] = await db.execute(sql, [id]);
+    if (!results[0]) return null; // User not found
+    return results[0];
+  } catch (err) {
+    console.error("Error fetching user by ID:", err);
+    throw new Error("Database error");
+  }
 };
+
 
 // ✅ Get all projects created by a user (1-to-many relation)
 export const getUserProjects = async (userId) => {

@@ -8,15 +8,39 @@ import { Eye, EyeOff, Moon, Sun } from "lucide-react";
 import { useTheme } from "../components/ThemeProvider";
 import { useNavigate } from "react-router-dom";
 
-export function Login({ onLogin, onSwitchToSignUp }) {
+import { useAuth } from "../context/AuthContext";
+import { toast } from "react-toastify";
+// import toast from "react-hot-toast";
+
+export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const handleSubmit = (e) => {
+  const { login, isLoading } = useAuth();
+
+  // ⬇ Form state
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+  });
+
+  const handleChange = (e) => {
     e.preventDefault();
-    console.log(e);
-    onLogin();
-    navigate("/"); // navigate to home page
+    setForm({ ...form, [e.target.id]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      await login(form);
+      navigate("/");
+    } catch (err) {
+      console.log("Login error:", err);
+      toast.error(
+        err.response?.data?.message || "Login failed. Please try again."
+      );
+    }
   };
 
   return (
@@ -36,7 +60,7 @@ export function Login({ onLogin, onSwitchToSignUp }) {
       </Button>
 
       <div className="w-full max-w-md">
-        {/* Logo and Header */}
+        {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
             <div className="w-[70px] h-[70px] bg-linear-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
@@ -60,6 +84,8 @@ export function Login({ onLogin, onSwitchToSignUp }) {
               <Input
                 id="email"
                 type="email"
+                value={form.email}
+                onChange={handleChange}
                 placeholder="your.email@university.edu"
                 required
                 className="dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:placeholder-slate-400"
@@ -68,25 +94,21 @@ export function Login({ onLogin, onSwitchToSignUp }) {
 
             {/* Password */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="dark:text-slate-200">
-                  Password
-                </Label>
-                <button
-                  type="button"
-                  className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
-                >
-                  Forgot password?
-                </button>
-              </div>
+              <Label htmlFor="password" className="dark:text-slate-200">
+                Password
+              </Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
+                  value={form.password}
+                  onChange={handleChange}
                   placeholder="Enter your password"
                   required
                   className="pr-10 dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:placeholder-slate-400"
                 />
+
+                {/* Show/Hide password */}
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -112,16 +134,14 @@ export function Login({ onLogin, onSwitchToSignUp }) {
               </label>
             </div>
 
-            {/* Submit Button */}
-            <Button type="submit" className="w-full">
-              Sign In
+            {/* Submit */}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Signing in..." : "Sign In"}
             </Button>
-
-            {/* Divider & Social login... (keep your existing JSX here) */}
           </form>
         </Card>
 
-        {/* Sign Up Link */}
+        {/* Sign Up link */}
         <p className="text-center mt-6 text-slate-600 dark:text-slate-400">
           Don't have an account?{" "}
           <button

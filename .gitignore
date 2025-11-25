@@ -23,6 +23,7 @@ Thumbs.db
 dist/
 build/
 
+uploads/
 # IDE/editor files
 .vscode/
 .idea/

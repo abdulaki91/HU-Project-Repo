@@ -43,7 +43,8 @@ export const addProject = async (req, res) => {
 // ✅ Get all projects
 export const getProjects = async (req, res) => {
   try {
-    const [rows] = await Project.getAllProjects();
+    const authorId = req.user.id;
+    const [rows] = await Project.getProjectsByAuthor(authorId);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch projects" });

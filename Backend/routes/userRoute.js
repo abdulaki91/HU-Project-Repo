@@ -1,6 +1,7 @@
 import express from "express";
 import * as User from "../controllers/userController.js";
 import * as Auth from "../controllers/authController.js";
+import { authenticateUser } from "../middlware/authenticate.js";
 
 const router = express.Router();
 
@@ -23,7 +24,7 @@ router.put("/update/:id", User.updateUserController);
 router.put("/change-password", User.changeUserPassword);
 
 // Get user by ID
-router.get("/:id", User.getUserByIdController);
+router.get("/me", authenticateUser, User.getUserByIdController);
 
 // Example: route restricted to admins only
 

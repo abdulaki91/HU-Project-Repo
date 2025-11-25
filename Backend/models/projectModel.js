@@ -12,7 +12,7 @@ export const createProjectsTable = () => {
       tags JSON,
       author_id INT NOT NULL,
       file_path VARCHAR(255),  -- <--- ADD THIS
-     date DATE DEFAULT CURRENT_DATE,  -- <-- default current date
+      date DATE DEFAULT CURRENT_DATE,  -- <-- default current date
       downloads INT DEFAULT 0,
       views INT DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -25,8 +25,12 @@ export const createProjectsTable = () => {
   return db.execute(sql);
 };
 
-export const getAllProjects = () =>
-  db.execute("SELECT * FROM projects ORDER BY date DESC");
+export const getProjectsByAuthor = (authorId) => {
+  return db.execute(
+    "SELECT * FROM projects WHERE author_id = ? ORDER BY date DESC",
+    [authorId]
+  );
+};
 export const getProjectById = (id) =>
   db.execute("SELECT * FROM projects WHERE id = ?", [id]);
 

@@ -2,12 +2,14 @@ import { createContext, useState, useEffect, useContext } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import useCreateResource from "../hooks/useCreateResource";
+import useFetchResource from "../hooks/useFetchResource";
+
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem("token"));
-  const [userId, setUserId] = useState(() => localStorage.getItem("userId"));
-  const userMutation = useCreateResource("users/login", "users");
+
+  // Set axios Authorization header on start
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
@@ -16,43 +18,51 @@ export function AuthProvider({ children }) {
     }
   }, [token]);
 
+  // React Query: Fetch logged-in user profile
+  const {
+    data: user,
+    isLoading,
+    isError,
+    refetch: refetchUser,
+  } = useFetchResource("user/me", "currentUser", !!token);
+
+  // React Query mutation for login
+  const loginMutation = useCreateResource("user/login", "users");
+
   const login = async (credentials) => {
     try {
-      const data = await userMutation.mutateAsync(credentials);
-      setToken(data.token);
-      setUserId(data.user.id);
+      const result = await loginMutation.mutateAsync(credentials);
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("userId", data.user.id);
+      // 1. Save token
+      setToken(result.token);
+      localStorage.setItem("token", result.token);
 
-      axios.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+      // 2. Set header
+      axios.defaults.headers.common["Authorization"] = `Bearer ${result.token}`;
+
+      // 3. Fetch user profile
+      refetchUser();
     } catch (error) {
       console.error("Login failed:", error);
       toast.error(
         error.response?.data?.message || "Login failed. Please try again."
       );
-      throw error;
     }
   };
 
   const logout = () => {
     setToken(null);
-    setUserId(null);
     localStorage.removeItem("token");
-    localStorage.removeItem("userId");
-
     delete axios.defaults.headers.common["Authorization"];
   };
 
   return (
-    <AuthContext.Provider value={{ token, userId, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, token, login, logout, isLoading, isError }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within AuthProvider");
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);

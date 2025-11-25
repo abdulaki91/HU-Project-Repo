@@ -144,7 +144,7 @@ export const loginQuery = (email) => {
 
 // ✅ Get user by ID
 export const findUserById = async (id) => {
-  const sql = `SELECT * FROM users WHERE id = ?`;
+  const sql = `SELECT firstName, lastName, email, batch, department, role, verified FROM users WHERE id = ?`;
   const [results] = await db.execute(sql, [id]);
   return results[0];
 };

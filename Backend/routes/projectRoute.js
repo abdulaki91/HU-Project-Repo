@@ -5,7 +5,7 @@ import { authenticateUser } from "../middlware/authenticate.js";
 import { uploadProjectFile } from "../middlware/upload.js";
 const router = express.Router();
 router.get("/create-project-table", Project.createProjectTable);
-router.get("/get-all", Project.getProjects); // GET all projects
+router.get("/get-all",authenticateUser, Project.getProjects); // GET all projects
 router.get("get/:id", Project.getProject); // GET project by ID
 router.post(
   "/create",

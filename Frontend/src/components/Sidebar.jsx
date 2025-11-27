@@ -15,22 +15,17 @@ import { useTheme } from "../components/ThemeProvider";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-export function Sidebar({
-  currentPage,
-  isOpen,
-  onToggle,
-  onLogout,
-  setIsOpen,
-}) {
+export function Sidebar({ currentPage, isOpen, onToggle, setIsOpen }) {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  console.log(user.firstName);
   const logoutUser = () => {
     logout();
     navigate("/login");
   };
   const menuItems = [
-    { id: "home", label: "Home", icon: Home },
+    { id: "/", label: "Home", icon: Home },
     { id: "upload", label: "Upload Project", icon: Upload },
     { id: "browse", label: "Browse Projects", icon: FolderSearch },
     { id: "dashboard", label: "Dashboard", icon: BarChart3 },
@@ -162,10 +157,10 @@ export function Sidebar({
                 </div>
                 <div>
                   <p className="text-slate-900 dark:text-white text-xs sm:text-sm md:text-base lg:text-lg">
-                    John Doe
+                    {user?.firstName + " " + user?.lastName || "User Name"}
                   </p>
-                  <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs md:text-sm lg:text-base">
-                    Student
+                  <p className="text-slate-500 capitalize dark:text-slate-400 text-[10px] sm:text-xs md:text-sm lg:text-base">
+                    {user?.role || "Role"}
                   </p>
                 </div>
               </div>

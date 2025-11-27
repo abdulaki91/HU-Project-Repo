@@ -94,7 +94,6 @@ export function SignUp({ onSignUp, onSwitchToLogin }) {
                   <SelectContent>
                     <SelectItem value="student">Student</SelectItem>
                     <SelectItem value="lecturer">Lecturer</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

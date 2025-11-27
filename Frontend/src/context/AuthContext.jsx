@@ -40,9 +40,9 @@ export function AuthProvider({ children }) {
   const login = async (credentials) => {
     const result = await loginMutation.mutateAsync(credentials);
 
+    console.log(result);
     setToken(result.token);
     localStorage.setItem("token", result.token);
-
     toast.success("Login successful");
   };
 

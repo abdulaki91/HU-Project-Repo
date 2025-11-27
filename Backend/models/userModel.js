@@ -13,7 +13,7 @@ export const createUsersTable = () => {
       batch VARCHAR(50) DEFAULT NULL,
       department VARCHAR(100) DEFAULT NULL,
       verificationToken VARCHAR(255) DEFAULT NULL,
-      role ENUM('admin', 'lecturer','student') NOT NULL DEFAULT 'student',
+      role ENUM('admin', 'lecturer','student','super-admin') NOT NULL DEFAULT 'student',
       verified BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -155,7 +155,6 @@ export const findUserById = async (id) => {
     throw new Error("Database error");
   }
 };
-
 
 // ✅ Get all projects created by a user (1-to-many relation)
 export const getUserProjects = async (userId) => {

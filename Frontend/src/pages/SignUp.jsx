@@ -204,7 +204,10 @@ export function SignUp({ onSignUp, onSwitchToLogin }) {
         {/* Switch to Login */}
         <p className="text-center mt-6">
           Already have an account?{" "}
-          <button onClick={() => navigate("login")} className="text-indigo-600">
+          <button
+            onClick={() => navigate("/login")}
+            className="text-indigo-600"
+          >
             Sign in
           </button>
         </p>

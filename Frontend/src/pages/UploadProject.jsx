@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
@@ -15,6 +15,7 @@ import { Badge } from "../components/Badge";
 import { Upload, X, FileText, CheckCircle2 } from "lucide-react";
 
 export function UploadProject() {
+  const formRef = useRef(null);
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -38,25 +39,32 @@ export function UploadProject() {
   const handleAddTag = (e) => {
     if (e.key === "Enter" && tagInput.trim()) {
       e.preventDefault();
-      if (!tags.includes(tagInput.trim())) {
-        setTags([...tags, tagInput.trim()]);
-      }
+      if (!tags.includes(tagInput.trim())) setTags([...tags, tagInput.trim()]);
       setTagInput("");
     }
   };
 
   const handleRemoveTag = (tagToRemove) => {
-    setTags(tags.filter((tag) => tag !== tagToRemove));
+    setTags(tags.filter((t) => t !== tagToRemove));
   };
 
   const handleFileChange = (e) => {
-    if (e.target.files) {
-      setUploadedFiles(Array.from(e.target.files));
-    }
+    if (e.target.files) setUploadedFiles(Array.from(e.target.files));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const formData = new FormData(formRef.current);
+
+    // Add tags and files
+    formData.append("tags", JSON.stringify(tags));
+    uploadedFiles.forEach((file) => formData.append("file", file));
+
+    // Log values for demonstration
+    for (let [key, value] of formData.entries()) {
+      console.log(key, value);
+    }
+
     setIsSubmitted(true);
     setTimeout(() => setIsSubmitted(false), 3000);
   };
@@ -87,50 +95,51 @@ export function UploadProject() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-slate-900 dark:text-white mb-2">Upload Project</h1>
-        <p className="text-slate-600 dark:text-slate-400">
-          Share your project with the campus community and contribute to the
-          knowledge repository
-        </p>
-      </div>
+      <h1 className="text-slate-900 dark:text-white mb-2">Upload Project</h1>
 
       <Card className="p-8 dark:bg-slate-800 dark:border-slate-700">
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
           {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="title" className="dark:text-slate-200">
-              Project Title
+              Title
             </Label>
             <Input
               id="title"
-              placeholder="Enter your project title"
+              name="title"
+              placeholder="Project Title"
               required
-              className="dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:placeholder-slate-400"
+              className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
             />
           </div>
 
           {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description" className="dark:text-slate-200">
-              Project Description
+              Description
             </Label>
             <Textarea
               id="description"
-              placeholder="Describe your project, its objectives, and key features"
-              className="min-h-32 dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:placeholder-slate-400"
+              name="description"
+              placeholder="Project Description"
               required
+              className="min-h-32 dark:bg-slate-700 dark:border-slate-600 dark:text-white"
             />
           </div>
 
-          {/* Course & Batch */}
+          {/* Course, Batch, Date, Author */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Course */}
             <div className="space-y-2">
               <Label htmlFor="course" className="dark:text-slate-200">
                 Course
               </Label>
-              <Select required>
+              <Select
+                name="course"
+                required
+                onValueChange={(value) =>
+                  (formRef.current.course.value = value)
+                }
+              >
                 <SelectTrigger
                   id="course"
                   className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
@@ -138,25 +147,24 @@ export function UploadProject() {
                   <SelectValue placeholder="Select course" />
                 </SelectTrigger>
                 <SelectContent className="dark:bg-slate-700 dark:border-slate-600">
-                  {courses.map((course) => (
-                    <SelectItem
-                      key={course}
-                      value={course}
-                      className="dark:text-white"
-                    >
-                      {course}
+                  {courses.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Batch */}
             <div className="space-y-2">
               <Label htmlFor="batch" className="dark:text-slate-200">
                 Batch/Year
               </Label>
-              <Select required>
+              <Select
+                name="batch"
+                required
+                onValueChange={(value) => (formRef.current.batch.value = value)}
+              >
                 <SelectTrigger
                   id="batch"
                   className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
@@ -164,17 +172,40 @@ export function UploadProject() {
                   <SelectValue placeholder="Select batch" />
                 </SelectTrigger>
                 <SelectContent className="dark:bg-slate-700 dark:border-slate-600">
-                  {batches.map((batch) => (
-                    <SelectItem
-                      key={batch}
-                      value={batch}
-                      className="dark:text-white"
-                    >
-                      {batch}
+                  {batches.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="date" className="dark:text-slate-200">
+                Date
+              </Label>
+              <Input
+                type="date"
+                id="date"
+                name="date"
+                required
+                className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="author_id" className="dark:text-slate-200">
+                Author ID
+              </Label>
+              <Input
+                type="text"
+                id="author_id"
+                name="author_id"
+                placeholder="Your ID"
+                required
+                className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+              />
             </div>
           </div>
 
@@ -189,9 +220,8 @@ export function UploadProject() {
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={handleAddTag}
-              className="dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:placeholder-slate-400"
+              className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
             />
-
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {tags.map((tag) => (
@@ -216,54 +246,30 @@ export function UploadProject() {
 
           {/* File Upload */}
           <div className="space-y-2">
-            <Label htmlFor="files" className="dark:text-slate-200">
-              Project Files
+            <Label htmlFor="file" className="dark:text-slate-200">
+              Project File
             </Label>
-
-            <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 transition-colors">
-              <input
-                type="file"
-                id="files"
-                multiple
-                onChange={handleFileChange}
-                className="hidden"
-              />
-
-              <label htmlFor="files" className="cursor-pointer">
-                <Upload className="h-12 w-12 text-slate-400 dark:text-slate-500 mx-auto mb-4" />
-                <p className="text-slate-700 dark:text-slate-300 mb-1">
-                  Click to upload or drag and drop
-                </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  PDF, DOC, ZIP
-                </p>
-              </label>
-            </div>
-
+            <input
+              type="file"
+              id="file"
+              name="file"
+              onChange={handleFileChange}
+              className="block w-full text-slate-700 dark:text-slate-300"
+            />
             {uploadedFiles.length > 0 && (
-              <div className="mt-4 space-y-2">
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  Uploaded files:
-                </p>
+              <div className="mt-2">
                 {uploadedFiles.map((file, index) => (
                   <div
                     key={index}
-                    className="flex items-center gap-2 p-2 border border-slate-200 dark:border-slate-700 rounded"
+                    className="flex justify-between text-sm text-slate-600 dark:text-slate-400"
                   >
-                    <FileText className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                    <span className="text-sm text-slate-700 dark:text-slate-300 flex-1">
-                      {file.name}
-                    </span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
-                    </span>
+                    {file.name} - {(file.size / 1024 / 1024).toFixed(2)} MB
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Buttons */}
           <div className="flex gap-4 pt-4">
             <Button type="submit" className="flex-1">
               Upload Project

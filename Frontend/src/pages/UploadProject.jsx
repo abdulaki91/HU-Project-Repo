@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
+import useCreateResource from "../hooks/useCreateResource";
+
 import { Input } from "../components/Input";
 import { Label } from "../components/Label";
 import { Textarea } from "../components/Textarea";
@@ -12,8 +14,20 @@ import {
   SelectValue,
 } from "../components/Select";
 import { Badge } from "../components/Badge";
-import { Upload, X, FileText, CheckCircle2 } from "lucide-react";
-
+import { X, CheckCircle2 } from "lucide-react";
+import axios from "axios";
+const courses = [
+  "Artificial Intelligence",
+  "Web Development",
+  "Mobile App Development",
+  "Data Science",
+  "Cloud Computing",
+  "Cybersecurity",
+  "Software Engineering",
+  "Database Management",
+  "Computer Networks",
+  "Machine Learning",
+];
 export function UploadProject() {
   const formRef = useRef(null);
   const [tags, setTags] = useState([]);
@@ -21,21 +35,11 @@ export function UploadProject() {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const courses = [
-    "Artificial Intelligence",
-    "Web Development",
-    "Mobile App Development",
-    "Data Science",
-    "Cloud Computing",
-    "Cybersecurity",
-    "Software Engineering",
-    "Database Management",
-    "Computer Networks",
-    "Machine Learning",
-  ];
-
   const batches = ["2024", "2023", "2022", "2021", "2020"];
-
+  const { mutate, isLoading, isError, isSuccess } = useCreateResource(
+    "project/create", // backend route
+    "projects" // query key to invalidate
+  );
   const handleAddTag = (e) => {
     if (e.key === "Enter" && tagInput.trim()) {
       e.preventDefault();
@@ -52,19 +56,22 @@ export function UploadProject() {
     if (e.target.files) setUploadedFiles(Array.from(e.target.files));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const formData = new FormData(formRef.current);
 
     // Add tags and files
     formData.append("tags", JSON.stringify(tags));
-    uploadedFiles.forEach((file) => formData.append("file", file));
 
     // Log values for demonstration
     for (let [key, value] of formData.entries()) {
       console.log(key, value);
     }
 
+    mutate({
+      data: formData,
+      config: { headers: { "Content-Type": "multipart/form-data" } },
+    });
     setIsSubmitted(true);
     setTimeout(() => setIsSubmitted(false), 3000);
   };
@@ -254,6 +261,7 @@ export function UploadProject() {
               id="file"
               name="file"
               onChange={handleFileChange}
+              accept=".zip,.pdf,.ppt,.pptx,.doc,.docx"
               className="block w-full text-slate-700 dark:text-slate-300"
             />
             {uploadedFiles.length > 0 && (

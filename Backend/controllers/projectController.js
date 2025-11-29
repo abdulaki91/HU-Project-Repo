@@ -22,11 +22,11 @@ export const addProject = async (req, res) => {
 
     const file_path = req.file ? req.file.path : null;
 
+    // console.log("File ", req.file);
     const projectData = {
       ...req.body,
       author_id,
       file_path,
-      // tags: req.body.tags ? JSON.parse(req.body.tags) : [],
       downloads: 0,
       views: 0,
     };

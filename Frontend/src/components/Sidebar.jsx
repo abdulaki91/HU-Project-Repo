@@ -19,7 +19,6 @@ export function Sidebar({ currentPage, isOpen, onToggle, setIsOpen }) {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const { logout, user } = useAuth();
-  console.log(user.firstName);
   const logoutUser = () => {
     logout();
     navigate("/login");

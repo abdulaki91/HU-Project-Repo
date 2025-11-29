@@ -10,10 +10,7 @@ router.get("get/:id", Project.getProject); // GET project by ID
 router.post(
   "/create",
   authenticateUser,
-  uploadProjectFile.fields([
-    { name: "file", maxCount: 1 },
-    { name: "thumbnail", maxCount: 1 }, // example for another file
-  ]),
+  uploadProjectFile.single("file"),
   Project.addProject
 ); // CREATE new project
 

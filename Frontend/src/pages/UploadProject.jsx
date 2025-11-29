@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import useCreateResource from "../hooks/useCreateResource";
-
+import { toast } from "react-toastify";
 import { Input } from "../components/Input";
 import { Label } from "../components/Label";
 import { Textarea } from "../components/Textarea";
@@ -14,8 +14,8 @@ import {
   SelectValue,
 } from "../components/Select";
 import { Badge } from "../components/Badge";
-import { X, CheckCircle2 } from "lucide-react";
-import axios from "axios";
+import { X } from "lucide-react";
+
 const courses = [
   "Artificial Intelligence",
   "Web Development",
@@ -28,18 +28,24 @@ const courses = [
   "Computer Networks",
   "Machine Learning",
 ];
+
+const batches = ["2024", "2023", "2022", "2021", "2020"];
+
 export function UploadProject() {
   const formRef = useRef(null);
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [progress, setProgress] = useState(0);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [mode, setMode] = useState(""); // "create" or "draft"
 
-  const batches = ["2024", "2023", "2022", "2021", "2020"];
-  const { mutate, isLoading, isError, isSuccess } = useCreateResource(
-    "project/create", // backend route
-    "projects" // query key to invalidate
+  // Mutations
+  const { mutate: createProject, isSuccess: createSuccess } = useCreateResource(
+    "project/create",
+    "projects"
   );
+
   const handleAddTag = (e) => {
     if (e.key === "Enter" && tagInput.trim()) {
       e.preventDefault();
@@ -56,49 +62,39 @@ export function UploadProject() {
     if (e.target.files) setUploadedFiles(Array.from(e.target.files));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const buildFormData = () => {
     const formData = new FormData(formRef.current);
-
-    // Add tags and files
     formData.append("tags", JSON.stringify(tags));
 
-    // Log values for demonstration
-    for (let [key, value] of formData.entries()) {
-      console.log(key, value);
-    }
-
-    mutate({
-      data: formData,
-      config: { headers: { "Content-Type": "multipart/form-data" } },
-    });
-    setIsSubmitted(true);
-    setTimeout(() => setIsSubmitted(false), 3000);
+    return formData;
   };
 
-  if (isSubmitted) {
-    return (
-      <div className="flex items-center justify-center min-h-[600px]">
-        <Card className="p-12 text-center max-w-md dark:bg-slate-800 dark:border-slate-700">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-green-50 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-              <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
-            </div>
-          </div>
-          <h2 className="text-slate-900 dark:text-white mb-2">
-            Project Uploaded Successfully!
-          </h2>
-          <p className="text-slate-600 dark:text-slate-400 mb-6">
-            Your project has been submitted and is now available in the
-            repository.
-          </p>
-          <Button onClick={() => setIsSubmitted(false)}>
-            Upload Another Project
-          </Button>
-        </Card>
-      </div>
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const formData = buildFormData();
+
+    setMode("create");
+    createProject(
+      {
+        data: formData,
+        config: { headers: { "Content-Type": "multipart/form-data" } },
+        onUploadProgress: (event) => {
+          const percent = Math.round((event.loaded * 100) / event.total);
+          setProgress(percent);
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Project uploaded successfully!");
+        },
+        onError: () => {
+          toast.error("Upload failed!");
+        },
+      }
     );
-  }
+
+    setIsSubmitted(true);
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -200,22 +196,7 @@ export function UploadProject() {
                 className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="author_id" className="dark:text-slate-200">
-                Author ID
-              </Label>
-              <Input
-                type="text"
-                id="author_id"
-                name="author_id"
-                placeholder="Your ID"
-                required
-                className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-              />
-            </div>
           </div>
-
           {/* Tags */}
           <div className="space-y-2">
             <Label htmlFor="tags" className="dark:text-slate-200">
@@ -260,6 +241,7 @@ export function UploadProject() {
               type="file"
               id="file"
               name="file"
+              required
               onChange={handleFileChange}
               accept=".zip,.pdf,.ppt,.pptx,.doc,.docx"
               className="block w-full text-slate-700 dark:text-slate-300"
@@ -278,12 +260,25 @@ export function UploadProject() {
             )}
           </div>
 
+          {/* Progress Bar */}
+          {progress > 0 && (
+            <div className="mt-4">
+              <div className="w-full bg-gray-200 rounded h-4">
+                <div
+                  className="bg-blue-600 h-4 rounded"
+                  style={{ width: `${progress}%` }}
+                ></div>
+              </div>
+              <p className="mt-2 text-sm text-gray-800 dark:text-gray-50">
+                {progress}% uploaded
+              </p>
+            </div>
+          )}
+
+          {/* Action Buttons */}
           <div className="flex gap-4 pt-4">
             <Button type="submit" className="flex-1">
               Upload Project
-            </Button>
-            <Button type="button" variant="outline">
-              Save as Draft
             </Button>
           </div>
         </form>
@@ -291,3 +286,7 @@ export function UploadProject() {
     </div>
   );
 }
+
+         
+          
+    

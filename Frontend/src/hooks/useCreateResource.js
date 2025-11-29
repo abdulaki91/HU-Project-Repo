@@ -6,8 +6,11 @@ const useCreateResource = (resource, queryKey) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ data, config }) => {
-      const { data: res } = await api.post(`/${resource}`, data, config);
+    mutationFn: async ({ data, config, onUploadProgress }) => {
+      const { data: res } = await api.post(`/${resource}`, data, {
+        ...config,
+        onUploadProgress, // pass progress handler
+      });
       return res;
     },
     onSuccess: () => {

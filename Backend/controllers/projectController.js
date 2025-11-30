@@ -1,5 +1,7 @@
 import * as Project from "../models/projectModel.js";
 import * as User from "../models/userModel.js";
+import path from "path";
+import fs from "fs";
 
 // ✅ Create projects table
 export const createProjectTable = async (req, res, next) => {
@@ -44,22 +46,11 @@ export const addProject = async (req, res) => {
 export const getProjects = async (req, res) => {
   try {
     const authorId = req.user.id;
-    const [rows] = await Project.getProjectsByAuthor(authorId);
-    res.json(rows);
+    // use the shared helper that supports filtering and tag parsing
+    const projects = await Project.getUserProjects(authorId);
+    res.json(projects);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch projects" });
-  }
-};
-
-// ✅ Get a project by ID
-export const getProject = async (req, res) => {
-  try {
-    const [rows] = await Project.getProjectById(req.params.id);
-    if (rows.length === 0)
-      return res.status(404).json({ message: "Project not found" });
-    res.json(rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch project" });
   }
 };
 
@@ -111,17 +102,62 @@ export const removeProject = async (req, res) => {
   }
 };
 
-// ✅ Get all projects created by a specific user
 export const getUserProjects = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user.id;
+    const { course, batch } = req.query;
 
     const user = await User.findUserById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    const projects = await User.getUserProjects(userId);
+    const filters = { course, batch };
+    const projects = await Project.getUserProjects(userId, filters);
+
     res.json(projects);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Failed to fetch user projects" });
+  }
+};
+
+export const downloadProject = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [rows] = await Project.getProjectById(id);
+    if (!rows || rows.length === 0)
+      return res.status(404).json({ message: "Project not found" });
+
+    const project = rows[0];
+    if (!project.file_path)
+      return res
+        .status(404)
+        .json({ message: "File not found for this project" });
+
+    // Secure the path: ensure file_path is under uploads/projects
+    const uploadsDir = path.resolve("uploads", "projects");
+    const requestedPath = path.resolve(project.file_path);
+    if (!requestedPath.startsWith(uploadsDir)) {
+      return res.status(400).json({ message: "Invalid file path" });
+    }
+
+    if (!fs.existsSync(requestedPath))
+      return res.status(404).json({ message: "File does not exist on server" });
+
+    // increment downloads (best-effort, don't block sending file)
+    try {
+      await Project.incrementDownloads(id);
+    } catch (e) {
+      console.error("Failed to increment downloads", e);
+    }
+
+    // send file as attachment
+    const filename = path.basename(requestedPath);
+    res.download(requestedPath, filename, (err) => {
+      if (err) console.error("Error sending file", err);
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to download project" });
   }
 };

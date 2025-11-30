@@ -12,12 +12,11 @@ export const createProjectsTable = () => {
       tags JSON,
       author_id INT NOT NULL,
       file_path VARCHAR(255),  -- <--- ADD THIS
-      date DATE DEFAULT CURRENT_DATE,  -- <-- default current date
       downloads INT DEFAULT 0,
+      status ENUM('pending', 'approved','rejected') DEFAULT 'pending',
       views INT DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      
       CONSTRAINT fk_author FOREIGN KEY (author_id) 
         REFERENCES users(id) ON DELETE CASCADE
     );
@@ -25,23 +24,17 @@ export const createProjectsTable = () => {
   return db.execute(sql);
 };
 
-export const getProjectsByAuthor = (authorId) => {
-  return db.execute(
-    "SELECT * FROM projects WHERE author_id = ? ORDER BY date DESC",
-    [authorId]
-  );
-};
 export const getProjectById = (id) =>
   db.execute("SELECT * FROM projects WHERE id = ?", [id]);
 
 export const createProject = (project) => {
   const sql = `
     INSERT INTO projects 
-    (title, description, course, batch, tags, author_id, file_path, date, downloads, views)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (title, description, course, batch, tags, author_id, file_path, downloads, views)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
-  const {
+  let {
     title,
     description,
     course,
@@ -49,10 +42,15 @@ export const createProject = (project) => {
     tags,
     author_id,
     file_path,
-    date,
     downloads,
     views,
   } = project;
+
+  // Ensure no undefined bind params (use null where appropriate)
+  if (typeof tags === "undefined" || tags === null) tags = [];
+  if (typeof file_path === "undefined") file_path = null;
+  if (typeof downloads === "undefined" || downloads === null) downloads = 0;
+  if (typeof views === "undefined" || views === null) views = 0;
 
   return db.execute(sql, [
     title,
@@ -62,7 +60,6 @@ export const createProject = (project) => {
     JSON.stringify(tags),
     author_id,
     file_path,
-    date,
     downloads,
     views,
   ]);
@@ -71,7 +68,7 @@ export const createProject = (project) => {
 export const updateProject = (id, project) => {
   const sql = `
     UPDATE projects SET
-      title = ?, description = ?, course = ?, batch = ?, tags = ?, author = ?, date = ?, downloads = ?, views = ?
+      title = ?, description = ?, course = ?, batch = ?, tags = ?, author_id = ?, file_path = ?, downloads = ?, views = ?
     WHERE id = ?
   `;
   const {
@@ -80,8 +77,8 @@ export const updateProject = (id, project) => {
     course,
     batch,
     tags,
-    author,
-    date,
+    author_id,
+    file_path,
     downloads,
     views,
   } = project;
@@ -91,8 +88,8 @@ export const updateProject = (id, project) => {
     course,
     batch,
     JSON.stringify(tags),
-    author,
-    date,
+    author_id,
+    file_path,
     downloads,
     views,
     id,
@@ -100,4 +97,37 @@ export const updateProject = (id, project) => {
 };
 export const deleteProject = (id) => {
   return db.execute("DELETE FROM projects WHERE id = ?", [id]);
+};
+
+export const getUserProjects = async (userId, filters = {}) => {
+  let sql = "SELECT * FROM projects WHERE author_id = ?";
+  const params = [userId];
+
+  if (filters.course && filters.course !== "all") {
+    sql += " AND course = ?";
+    params.push(filters.course);
+  }
+
+  if (filters.batch && filters.batch !== "all") {
+    sql += " AND batch = ?";
+    params.push(filters.batch);
+  }
+
+  if (filters.date) {
+    sql += " AND date >= ?";
+    params.push(filters.date);
+  }
+
+  sql += " ORDER BY date DESC";
+
+  const [rows] = await db.execute(sql, params);
+  return rows.map((p) => ({
+    ...p,
+    tags: typeof p.tags === "string" ? JSON.parse(p.tags) : p.tags,
+  }));
+};
+
+export const incrementDownloads = (projectId) => {
+  const sql = `UPDATE projects SET downloads = downloads + 1 WHERE id = ?`;
+  return db.execute(sql, [projectId]);
 };

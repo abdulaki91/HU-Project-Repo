@@ -3,6 +3,7 @@ import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { Badge } from "../components/Badge";
+import courses from "../constants/courses";
 import {
   Select,
   SelectContent,
@@ -20,101 +21,94 @@ import {
   Calendar,
   User,
 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import api from "../api/api";
 
 export function BrowseProjects() {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState("grid"); // plain string
+  const [selectedCourse, setSelectedCourse] = useState("all");
+  const [selectedBatch, setSelectedBatch] = useState("all");
+  // fetch projects from backend with filters
+  const buildQueryKey = () => ["projects", selectedCourse, selectedBatch];
 
-  const projects = [
-    {
-      id: 1,
-      title: "AI-Powered Chatbot for Student Support",
-      description:
-        "Intelligent chatbot system that assists students with course inquiries, academic guidance, and administrative questions.",
-      course: "Artificial Intelligence",
-      batch: "2024",
-      tags: ["Python", "NLP", "TensorFlow", "Flask"],
-      author: "Sarah Johnson",
-      date: "2024-03-15",
-      downloads: 245,
-      views: 1203,
+  const { data: projects = [], isLoading } = useQuery({
+    queryKey: buildQueryKey(),
+    queryFn: async () => {
+      const params = {};
+      if (selectedCourse && selectedCourse !== "all")
+        params.course = selectedCourse;
+      if (selectedBatch && selectedBatch !== "all")
+        params.batch = selectedBatch;
+      const { data } = await api.get("/project/get-all", { params });
+      return data || [];
     },
-    {
-      id: 2,
-      title: "E-Commerce Platform with Payment Integration",
-      description:
-        "Full-stack e-commerce application featuring product catalog, shopping cart, and secure payment processing.",
-      course: "Web Development",
-      batch: "2024",
-      tags: ["React", "Node.js", "MongoDB", "Stripe"],
-      author: "Michael Chen",
-      date: "2024-03-14",
-      downloads: 189,
-      views: 876,
-    },
-    {
-      id: 3,
-      title: "Mobile Health Tracking Application",
-      description:
-        "Cross-platform mobile app for tracking fitness activities, nutrition, and health metrics with real-time sync.",
-      course: "Mobile App Development",
-      batch: "2023",
-      tags: ["Flutter", "Firebase", "Dart"],
-      author: "Emily Rodriguez",
-      date: "2024-03-12",
-      downloads: 156,
-      views: 654,
-    },
-    {
-      id: 4,
-      title: "Blockchain-Based Supply Chain Management",
-      description:
-        "Decentralized supply chain tracking system using blockchain for transparency and security.",
-      course: "Blockchain Technology",
-      batch: "2024",
-      tags: ["Solidity", "Ethereum", "Web3.js"],
-      author: "David Park",
-      date: "2024-03-10",
-      downloads: 198,
-      views: 934,
-    },
-    {
-      id: 5,
-      title: "Machine Learning Stock Price Predictor",
-      description:
-        "Advanced ML model for predicting stock market trends using historical data and sentiment analysis.",
-      course: "Data Science",
-      batch: "2023",
-      tags: ["Python", "Scikit-learn", "Pandas", "LSTM"],
-      author: "Aisha Patel",
-      date: "2024-03-08",
-      downloads: 287,
-      views: 1456,
-    },
-    {
-      id: 6,
-      title: "Smart Home IoT Control System",
-      description:
-        "IoT-based home automation system with mobile app control and voice integration.",
-      course: "Internet of Things",
-      batch: "2024",
-      tags: ["Arduino", "Raspberry Pi", "MQTT"],
-      author: "James Wilson",
-      date: "2024-03-05",
-      downloads: 134,
-      views: 723,
-    },
-  ];
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const filteredProjects = projects.filter(
-    (project) =>
-      project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.tags.some((tag) =>
-        tag.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-  );
+  const queryClient = useQueryClient();
 
+  const handleDownload = async (project) => {
+    try {
+      const resp = await api.get(`/project/download/${project.id}`, {
+        responseType: "blob",
+      });
+
+      // determine filename from content-disposition header or fallback
+      const disposition = resp.headers["content-disposition"] || "";
+      let filename = project.file_path
+        ? project.file_path.split(/[\\/]/).pop()
+        : "project";
+      const match = disposition.match(/filename="?([^";]+)"?/);
+      if (match && match[1]) filename = match[1];
+
+      const url = window.URL.createObjectURL(new Blob([resp.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      // refresh projects to get updated download counts
+      queryClient.invalidateQueries(buildQueryKey());
+    } catch (err) {
+      console.error("Download failed", err);
+    }
+  };
+
+  console.log("fetched projects", projects);
+
+  // Normalize tags: backend may return tags as a JSON string or array
+  const normalizedProjects = projects.map((p) => {
+    let tags = p.tags;
+    if (typeof tags === "string") {
+      try {
+        tags = JSON.parse(tags);
+      } catch (e) {
+        // fallback: try to clean up common string shapes
+        tags = tags
+          .replace(/\[|\]|\"/g, "")
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean);
+      }
+    }
+    if (!Array.isArray(tags)) tags = [];
+    return { ...p, tags };
+  });
+  const filteredProjects = normalizedProjects.filter((project) => {
+    const q = searchQuery.toLowerCase();
+    const inTitle = project.title?.toLowerCase().includes(q);
+    const inDescription = project.description?.toLowerCase().includes(q);
+    const inTags = (project.tags || []).some((tag) =>
+      String(tag).toLowerCase().includes(q)
+    );
+    return inTitle || inDescription || inTags;
+  });
+  const currentYear = new Date().getFullYear();
+  const batches = Array.from({ length: 6 }, (_, i) => currentYear - i);
   return (
     <div className="space-y-6">
       <div>
@@ -138,27 +132,32 @@ export function BrowseProjects() {
             />
           </div>
 
-          <Select>
+          <Select
+            onValueChange={(v) => setSelectedCourse(v)}
+            defaultValue="all"
+          >
             <SelectTrigger className="w-full md:w-48 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
               <SelectValue placeholder="All Courses" />
             </SelectTrigger>
+
             <SelectContent className="dark:bg-slate-700 dark:border-slate-600">
               <SelectItem value="all" className="dark:text-white">
                 All Courses
               </SelectItem>
-              <SelectItem value="ai" className="dark:text-white">
-                Artificial Intelligence
-              </SelectItem>
-              <SelectItem value="web" className="dark:text-white">
-                Web Development
-              </SelectItem>
-              <SelectItem value="mobile" className="dark:text-white">
-                Mobile Development
-              </SelectItem>
+
+              {courses.map((course) => (
+                <SelectItem
+                  key={course}
+                  value={course}
+                  className="dark:text-white"
+                >
+                  {course}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
-          <Select>
+          <Select onValueChange={(v) => setSelectedBatch(v)} defaultValue="all">
             <SelectTrigger className="w-full md:w-48 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
               <SelectValue placeholder="All Batches" />
             </SelectTrigger>
@@ -166,15 +165,15 @@ export function BrowseProjects() {
               <SelectItem value="all" className="dark:text-white">
                 All Batches
               </SelectItem>
-              <SelectItem value="2024" className="dark:text-white">
-                2024
-              </SelectItem>
-              <SelectItem value="2023" className="dark:text-white">
-                2023
-              </SelectItem>
-              <SelectItem value="2022" className="dark:text-white">
-                2022
-              </SelectItem>
+              {batches?.map((batch) => (
+                <SelectItem
+                  key={batch}
+                  value={batch}
+                  className="dark:text-white"
+                >
+                  {batch}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -223,7 +222,9 @@ export function BrowseProjects() {
       </div>
 
       {/* GRID VIEW */}
-      {viewMode === "grid" ? (
+      {isLoading ? (
+        <Card className="p-6">Loading...</Card>
+      ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filteredProjects.map((project) => (
             <Card
@@ -252,15 +253,16 @@ export function BrowseProjects() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {project.tags.map((tag, idx) => (
-                    <Badge
-                      key={idx}
-                      variant="secondary"
-                      className="dark:bg-slate-700 dark:text-slate-300"
-                    >
-                      {tag}
-                    </Badge>
-                  ))}
+                  {[] ||
+                    project?.tags?.map((tag, idx) => (
+                      <Badge
+                        key={idx}
+                        variant="secondary"
+                        className="dark:bg-slate-700 dark:text-slate-300"
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
@@ -275,7 +277,7 @@ export function BrowseProjects() {
                     </div>
                   </div>
 
-                  <Button size="sm">
+                  <Button size="sm" onClick={() => handleDownload(project)}>
                     <Download className="h-4 w-4 mr-2" />
                     Download
                   </Button>
@@ -286,7 +288,9 @@ export function BrowseProjects() {
                   {project.author}
                   <span>•</span>
                   <Calendar className="h-3 w-3" />
-                  {new Date(project.date).toLocaleDateString()}
+                  {project.created_at
+                    ? new Date(project.created_at).toLocaleDateString()
+                    : ""}
                 </div>
               </div>
             </Card>
@@ -328,7 +332,11 @@ export function BrowseProjects() {
                     <span>•</span>
                     <span>{project.author}</span>
                     <span>•</span>
-                    <span>{new Date(project.date).toLocaleDateString()}</span>
+                    <span>
+                      {project.created_at
+                        ? new Date(project.created_at).toLocaleDateString()
+                        : ""}
+                    </span>
                   </div>
                 </div>
 
@@ -344,7 +352,7 @@ export function BrowseProjects() {
                     </div>
                   </div>
 
-                  <Button>
+                  <Button onClick={() => handleDownload(project)}>
                     <Download className="h-4 w-4 mr-2" />
                     Download
                   </Button>

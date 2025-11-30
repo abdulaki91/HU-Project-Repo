@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
+// import { Button } from "flowbite-react";
 import useCreateResource from "../hooks/useCreateResource";
 import { toast } from "react-toastify";
 import { Input } from "../components/Input";
@@ -15,19 +16,7 @@ import {
 } from "../components/Select";
 import { Badge } from "../components/Badge";
 import { X } from "lucide-react";
-
-const courses = [
-  "Artificial Intelligence",
-  "Web Development",
-  "Mobile App Development",
-  "Data Science",
-  "Cloud Computing",
-  "Cybersecurity",
-  "Software Engineering",
-  "Database Management",
-  "Computer Networks",
-  "Machine Learning",
-];
+import courses from "../constants/courses";
 
 const batches = ["2024", "2023", "2022", "2021", "2020"];
 
@@ -184,18 +173,7 @@ export function UploadProject() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="date" className="dark:text-slate-200">
-                Date
-              </Label>
-              <Input
-                type="date"
-                id="date"
-                name="date"
-                required
-                className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-              />
-            </div>
+           
           </div>
           {/* Tags */}
           <div className="space-y-2">
@@ -277,7 +255,7 @@ export function UploadProject() {
 
           {/* Action Buttons */}
           <div className="flex gap-4 pt-4">
-            <Button type="submit" className="flex-1">
+            <Button type="submit"  className="flex-1" >
               Upload Project
             </Button>
           </div>

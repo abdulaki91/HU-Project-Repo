@@ -156,9 +156,3 @@ export const findUserById = async (id) => {
   }
 };
 
-// ✅ Get all projects created by a user (1-to-many relation)
-export const getUserProjects = async (userId) => {
-  const sql = `SELECT * FROM projects WHERE author_id = ? ORDER BY date DESC`;
-  const [rows] = await db.execute(sql, [userId]);
-  return rows;
-};

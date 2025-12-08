@@ -1,7 +1,7 @@
 // hooks/useEditResource.js
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/api";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 
 export default function useEditResource(resource, queryKey) {
   const queryClient = useQueryClient();
@@ -14,7 +14,8 @@ export default function useEditResource(resource, queryKey) {
     },
     onSuccess: () => {
       toast.success("Updated successfully!");
-      queryClient.invalidateQueries({ queryKey: [queryKey] });
+      const key = Array.isArray(queryKey) ? queryKey : [queryKey];
+      queryClient.invalidateQueries({ queryKey: key });
     },
     onError: (err) => {
       toast.error("Failed to update.");

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 // import { Button } from "flowbite-react";
@@ -7,6 +8,7 @@ import { toast } from "react-toastify";
 import { Input } from "../components/Input";
 import { Label } from "../components/Label";
 import { Textarea } from "../components/Textarea";
+import { departments } from "../constants/departments";
 import {
   Select,
   SelectContent,
@@ -34,6 +36,7 @@ export function UploadProject() {
     "project/create",
     "projects"
   );
+  const { user } = useAuth();
 
   const handleAddTag = (e) => {
     if (e.key === "Enter" && tagInput.trim()) {
@@ -173,7 +176,54 @@ export function UploadProject() {
               </Select>
             </div>
 
-           
+            <div className="space-y-2">
+              <Label htmlFor="department" className="dark:text-slate-200">
+                Department
+              </Label>
+              <Select
+                name="department"
+                required
+                onValueChange={(value) =>
+                  (formRef.current.department.value = value)
+                }
+              >
+                <SelectTrigger
+                  id="department"
+                  className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+                >
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent className="dark:bg-slate-700 dark:border-slate-600">
+                  {departments.map((d) => (
+                    <SelectItem key={d} value={d}>
+                      {d}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="author_name" className="dark:text-slate-200">
+                Author Name
+              </Label>
+              <Input
+                id="author_name"
+                name="author_name"
+                placeholder="Author name"
+                defaultValue={
+                  user && (user.firstName || user.lastName)
+                    ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
+                    : user?.name || ""
+                }
+                readOnly
+                className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+              />
+            </div>
+
+            <input type="hidden" name="course" />
+            <input type="hidden" name="batch" />
+            <input type="hidden" name="department" />
           </div>
           {/* Tags */}
           <div className="space-y-2">
@@ -255,7 +305,7 @@ export function UploadProject() {
 
           {/* Action Buttons */}
           <div className="flex gap-4 pt-4">
-            <Button type="submit"  className="flex-1" >
+            <Button type="submit" className="flex-1">
               Upload Project
             </Button>
           </div>

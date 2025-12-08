@@ -12,41 +12,40 @@ import {
   SelectValue,
 } from "../components/Select";
 
-import {
-  Search,
-  Download,
-  Eye,
-  Grid3x3,
-  List,
-  Calendar,
-  User,
-} from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Search, Download, Grid3x3, List, Calendar, User } from "lucide-react";
+import EditProjectModal from "../components/EditProjectModal";
+import { useQueryClient } from "@tanstack/react-query";
 import api from "../api/api";
+import ProjectCard from "../components/ProjectCard";
+import ProjectFilters from "../components/ProjectFilters";
+import { formatBytes } from "../utils/utils";
+import useFetchResource from "../hooks/useFetchResource";
 
 export function BrowseProjects() {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState("grid"); // plain string
   const [selectedCourse, setSelectedCourse] = useState("all");
   const [selectedBatch, setSelectedBatch] = useState("all");
-  // fetch projects from backend with filters
-  const buildQueryKey = () => ["projects", selectedCourse, selectedBatch];
-
-  const { data: projects = [], isLoading } = useQuery({
-    queryKey: buildQueryKey(),
-    queryFn: async () => {
-      const params = {};
-      if (selectedCourse && selectedCourse !== "all")
-        params.course = selectedCourse;
-      if (selectedBatch && selectedBatch !== "all")
-        params.batch = selectedBatch;
-      const { data } = await api.get("/project/get-all", { params });
-      return data || [];
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+  // fetch projects from backend with filters using hook
+  const params = new URLSearchParams();
+  if (selectedCourse && selectedCourse !== "all")
+    params.set("course", selectedCourse);
+  if (selectedBatch && selectedBatch !== "all")
+    params.set("batch", selectedBatch);
+  const resource = `project/get-all${
+    params.toString() ? `?${params.toString()}` : ""
+  }`;
+  const queryKey = ["projects", selectedCourse, selectedBatch];
+  const { data: projects = [], isLoading } = useFetchResource(
+    resource,
+    queryKey
+  );
 
   const queryClient = useQueryClient();
+  const { data: me } = useFetchResource("user/me", "user-me");
+
+  const [editingProject, setEditingProject] = useState(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const handleDownload = async (project) => {
     try {
@@ -72,13 +71,11 @@ export function BrowseProjects() {
       window.URL.revokeObjectURL(url);
 
       // refresh projects to get updated download counts
-      queryClient.invalidateQueries(buildQueryKey());
+      queryClient.invalidateQueries({ queryKey });
     } catch (err) {
       console.error("Download failed", err);
     }
   };
-
-  console.log("fetched projects", projects);
 
   // Normalize tags: backend may return tags as a JSON string or array
   const normalizedProjects = projects.map((p) => {
@@ -121,80 +118,17 @@ export function BrowseProjects() {
 
       {/* Search and Filter Bar */}
       <Card className="p-6 dark:bg-slate-800 dark:border-slate-700">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
-            <Input
-              placeholder="Search by title, description, or technology..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:placeholder-slate-400"
-            />
-          </div>
-
-          <Select
-            onValueChange={(v) => setSelectedCourse(v)}
-            defaultValue="all"
-          >
-            <SelectTrigger className="w-full md:w-48 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-              <SelectValue placeholder="All Courses" />
-            </SelectTrigger>
-
-            <SelectContent className="dark:bg-slate-700 dark:border-slate-600">
-              <SelectItem value="all" className="dark:text-white">
-                All Courses
-              </SelectItem>
-
-              {courses.map((course) => (
-                <SelectItem
-                  key={course}
-                  value={course}
-                  className="dark:text-white"
-                >
-                  {course}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select onValueChange={(v) => setSelectedBatch(v)} defaultValue="all">
-            <SelectTrigger className="w-full md:w-48 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-              <SelectValue placeholder="All Batches" />
-            </SelectTrigger>
-            <SelectContent className="dark:bg-slate-700 dark:border-slate-600">
-              <SelectItem value="all" className="dark:text-white">
-                All Batches
-              </SelectItem>
-              {batches?.map((batch) => (
-                <SelectItem
-                  key={batch}
-                  value={batch}
-                  className="dark:text-white"
-                >
-                  {batch}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <div className="flex gap-2">
-            <Button
-              variant={viewMode === "grid" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setViewMode("grid")}
-            >
-              <Grid3x3 className="h-4 w-4" />
-            </Button>
-
-            <Button
-              variant={viewMode === "list" ? "default" : "outline"}
-              size="icon"
-              onClick={() => setViewMode("list")}
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <ProjectFilters
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          selectedCourse={selectedCourse}
+          setSelectedCourse={setSelectedCourse}
+          selectedBatch={selectedBatch}
+          setSelectedBatch={setSelectedBatch}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          batches={batches}
+        />
       </Card>
 
       {/* Results Count */}
@@ -227,141 +161,97 @@ export function BrowseProjects() {
       ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filteredProjects.map((project) => (
-            <Card
+            <ProjectCard
               key={project.id}
-              className="p-6 hover:shadow-lg transition-shadow dark:bg-slate-800 dark:border-slate-700"
-            >
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-slate-900 dark:text-white mb-2">
-                    {project.title}
-                  </h3>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
-                    {project.description}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                  <Badge
-                    variant="outline"
-                    className="dark:border-slate-600 dark:text-slate-300"
-                  >
-                    {project.course}
-                  </Badge>
-                  <span>•</span>
-                  <span>Batch {project.batch}</span>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {[] ||
-                    project?.tags?.map((tag, idx) => (
-                      <Badge
-                        key={idx}
-                        variant="secondary"
-                        className="dark:bg-slate-700 dark:text-slate-300"
-                      >
-                        {tag}
-                      </Badge>
-                    ))}
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
-                  <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
-                    <div className="flex items-center gap-1">
-                      <Eye className="h-3 w-3" />
-                      {project.views}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Download className="h-3 w-3" />
-                      {project.downloads}
-                    </div>
-                  </div>
-
-                  <Button size="sm" onClick={() => handleDownload(project)}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                </div>
-
-                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                  <User className="h-3 w-3" />
-                  {project.author}
-                  <span>•</span>
-                  <Calendar className="h-3 w-3" />
-                  {project.created_at
-                    ? new Date(project.created_at).toLocaleDateString()
-                    : ""}
-                </div>
-              </div>
-            </Card>
+              project={project}
+              currentUser={me}
+              currentUserId={me?.id}
+              variant="grid"
+              onEdit={(p) => {
+                setEditingProject(p);
+                setEditOpen(true);
+              }}
+              onDownload={handleDownload}
+              onApprove={async (p) => {
+                try {
+                  await api.put(`/project/status/${p.id}`, {
+                    status: "approved",
+                  });
+                  queryClient.invalidateQueries({ queryKey });
+                  queryClient.invalidateQueries({ queryKey: ["my-projects"] });
+                } catch (err) {
+                  console.error("Approve failed", err);
+                }
+              }}
+              onReject={async (p) => {
+                try {
+                  await api.put(`/project/status/${p.id}`, {
+                    status: "rejected",
+                  });
+                  queryClient.invalidateQueries({ queryKey });
+                  queryClient.invalidateQueries({ queryKey: ["my-projects"] });
+                } catch (err) {
+                  console.error("Reject failed", err);
+                }
+              }}
+            />
           ))}
         </div>
       ) : (
         /* LIST VIEW */
         <div className="space-y-4">
           {filteredProjects.map((project) => (
-            <Card
+            <ProjectCard
               key={project.id}
-              className="p-6 hover:shadow-lg transition-shadow dark:bg-slate-800 dark:border-slate-700"
-            >
-              <div className="flex flex-col md:flex-row md:items-center gap-4">
-                <div className="flex-1 space-y-2">
-                  <h3 className="text-slate-900 dark:text-white">
-                    {project.title}
-                  </h3>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
-                    {project.description}
-                  </p>
-
-                  <div className="flex flex-wrap gap-2">
-                    {project.tags.map((tag, idx) => (
-                      <Badge
-                        key={idx}
-                        variant="secondary"
-                        className="text-xs dark:bg-slate-700 dark:text-slate-300"
-                      >
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
-                    <span>{project.course}</span>
-                    <span>•</span>
-                    <span>Batch {project.batch}</span>
-                    <span>•</span>
-                    <span>{project.author}</span>
-                    <span>•</span>
-                    <span>
-                      {project.created_at
-                        ? new Date(project.created_at).toLocaleDateString()
-                        : ""}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex md:flex-col items-center gap-4">
-                  <div className="flex gap-4 text-xs text-slate-500 dark:text-slate-400">
-                    <div className="flex items-center gap-1">
-                      <Eye className="h-3 w-3" />
-                      {project.views}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Download className="h-3 w-3" />
-                      {project.downloads}
-                    </div>
-                  </div>
-
-                  <Button onClick={() => handleDownload(project)}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                </div>
-              </div>
-            </Card>
+              project={project}
+              currentUser={me}
+              currentUserId={me?.id}
+              variant="list"
+              onEdit={(p) => {
+                setEditingProject(p);
+                setEditOpen(true);
+              }}
+              onDownload={handleDownload}
+              onApprove={async (p) => {
+                try {
+                  await api.put(`/project/status/${p.id}`, {
+                    status: "approved",
+                  });
+                  queryClient.invalidateQueries({ queryKey });
+                  queryClient.invalidateQueries({ queryKey: ["my-projects"] });
+                } catch (err) {
+                  console.error("Approve failed", err);
+                }
+              }}
+              onReject={async (p) => {
+                try {
+                  await api.put(`/project/status/${p.id}`, {
+                    status: "rejected",
+                  });
+                  queryClient.invalidateQueries({ queryKey });
+                  queryClient.invalidateQueries({ queryKey: ["my-projects"] });
+                } catch (err) {
+                  console.error("Reject failed", err);
+                }
+              }}
+            />
           ))}
         </div>
       )}
+      {/* Edit modal */}
+      <EditProjectModal
+        project={editingProject}
+        open={editOpen}
+        invalidateKey={queryKey}
+        onClose={(success) => {
+          setEditOpen(false);
+          setEditingProject(null);
+          if (success) {
+            // ensure user's own project list also refreshes
+            queryClient.invalidateQueries({ queryKey: ["my-projects"] });
+          }
+        }}
+      />
     </div>
   );
 }

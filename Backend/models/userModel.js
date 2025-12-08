@@ -13,7 +13,7 @@ export const createUsersTable = () => {
       batch VARCHAR(50) DEFAULT NULL,
       department VARCHAR(100) DEFAULT NULL,
       verificationToken VARCHAR(255) DEFAULT NULL,
-      role ENUM('admin', 'lecturer','student','super-admin') NOT NULL DEFAULT 'student',
+      role ENUM('admin','student','super-admin') NOT NULL DEFAULT 'student',
       verified BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -144,7 +144,7 @@ export const loginQuery = (email) => {
 
 export const findUserById = async (id) => {
   try {
-    const sql = `SELECT firstName, lastName, email, batch, department, role, verified 
+    const sql = `SELECT id, firstName, lastName, email, batch, department, role, verified, created_at 
                  FROM users 
                  WHERE id = ?`;
     const [results] = await db.execute(sql, [id]);

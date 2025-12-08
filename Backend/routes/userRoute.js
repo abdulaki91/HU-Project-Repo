@@ -18,11 +18,11 @@ router.post("/login", Auth.loginUser);
 router.get("/verify/:token", User.verifyToken);
 
 // Update profile (only authenticated users)
-router.put("/update/:id", User.updateUserController);
+router.put("/update/:id", authenticateUser, User.updateUserController);
 
 // Change password
-router.put("/change-password", User.changeUserPassword);
-
+router.put("/change-password", authenticateUser, User.changeUserPassword);
+    
 // Get user by ID
 router.get("/me", authenticateUser, User.getUserByIdController);
 

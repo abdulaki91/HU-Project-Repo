@@ -35,6 +35,9 @@ import {
   Clock,
   AlertCircle,
 } from "lucide-react";
+import { useState } from "react";
+import useFetchResource from "../hooks/useFetchResource";
+import ProjectViewModal from "../components/ProjectViewModal";
 
 export function Dashboard() {
   const stats = [
@@ -100,53 +103,15 @@ export function Dashboard() {
     { day: "Sun", views: 250, downloads: 38 },
   ];
 
-  const recentProjects = [
-    {
-      id: 1,
-      title: "AI Chatbot System",
-      author: "Sarah Johnson",
-      course: "Artificial Intelligence",
-      status: "approved",
-      date: "2024-03-15",
-      downloads: 45,
-    },
-    {
-      id: 2,
-      title: "E-Commerce Platform",
-      author: "Michael Chen",
-      course: "Web Development",
-      status: "pending",
-      date: "2024-03-14",
-      downloads: 32,
-    },
-    {
-      id: 3,
-      title: "Health Tracking App",
-      author: "Emily Rodriguez",
-      course: "Mobile Development",
-      status: "approved",
-      date: "2024-03-12",
-      downloads: 28,
-    },
-    {
-      id: 4,
-      title: "Blockchain Supply Chain",
-      author: "David Park",
-      course: "Blockchain",
-      status: "approved",
-      date: "2024-03-10",
-      downloads: 51,
-    },
-    {
-      id: 5,
-      title: "Stock Price Predictor",
-      author: "Aisha Patel",
-      course: "Data Science",
-      status: "review",
-      date: "2024-03-08",
-      downloads: 67,
-    },
-  ];
+  // fetch projects from backend
+  const { data: projects = [], isLoading: projectsLoading } = useFetchResource(
+    "project/get-all",
+    "projects"
+  );
+  // fetch current user to know role/department
+  const { data: me } = useFetchResource("user/me", "user-me");
+  const [activeTab, setActiveTab] = useState("all");
+  const [viewingProject, setViewingProject] = useState(null);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -317,7 +282,7 @@ export function Dashboard() {
       <Card className="p-6 dark:bg-slate-800 dark:border-slate-700">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-slate-900 dark:text-white">Recent Projects</h2>
-          <Tabs defaultValue="all">
+          <Tabs defaultValue="all" onValueChange={(v) => setActiveTab(v)}>
             <TabsList className="dark:bg-slate-700">
               <TabsTrigger
                 value="all"
@@ -360,38 +325,76 @@ export function Dashboard() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {recentProjects.map((project) => (
-              <TableRow key={project.id} className="dark:border-slate-700">
-                <TableCell className="dark:text-white">
-                  {project.title}
-                </TableCell>
-                <TableCell className="text-slate-600 dark:text-slate-400">
-                  {project.author}
-                </TableCell>
-                <TableCell className="text-slate-600 dark:text-slate-400">
-                  {project.course}
-                </TableCell>
-                <TableCell>{getStatusBadge(project.status)}</TableCell>
-                <TableCell className="text-slate-600 dark:text-slate-400">
-                  {new Date(project.date).toLocaleDateString()}
-                </TableCell>
-                <TableCell className="text-right text-slate-600 dark:text-slate-400">
-                  {project.downloads}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="dark:hover:bg-slate-700"
-                  >
-                    View
-                  </Button>
-                </TableCell>
+            {projectsLoading ? (
+              <TableRow>
+                <TableCell colSpan={7}>Loading...</TableCell>
               </TableRow>
-            ))}
+            ) : (
+              projects
+                .filter((project) => {
+                  if (activeTab === "all") return true;
+                  if (activeTab === "pending")
+                    return project.status === "pending";
+                  if (activeTab === "approved")
+                    return project.status === "approved";
+                  return true;
+                })
+                // If user is admin, limit pending to their department
+                .filter((project) => {
+                  if (me && me.role === "admin" && activeTab === "pending") {
+                    return project.course === me.department;
+                  }
+                  return true;
+                })
+                .map((project) => (
+                  <TableRow key={project.id} className="dark:border-slate-700">
+                    <TableCell className="dark:text-white">
+                      {project.title}
+                    </TableCell>
+                    <TableCell className="text-slate-600 dark:text-slate-400">
+                      {project.author || project.author_name}
+                    </TableCell>
+                    <TableCell className="text-slate-600 dark:text-slate-400">
+                      {project.course}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(project.status)}</TableCell>
+                    <TableCell className="text-slate-600 dark:text-slate-400">
+                      {project.created_at
+                        ? new Date(project.created_at).toLocaleDateString()
+                        : ""}
+                    </TableCell>
+                    <TableCell className="text-right text-slate-600 dark:text-slate-400">
+                      {project.downloads}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="dark:hover:bg-slate-700"
+                        onClick={() => setViewingProject(project)}
+                      >
+                        View
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+            )}
           </TableBody>
         </Table>
       </Card>
+      {/* Project view modal */}
+      <ProjectViewModal
+        project={viewingProject}
+        open={!!viewingProject}
+        currentUser={me}
+        onClose={(changed) => {
+          setViewingProject(null);
+          if (changed) {
+            // refresh lists
+            // use global react-query keys
+          }
+        }}
+      />
     </div>
   );
 }

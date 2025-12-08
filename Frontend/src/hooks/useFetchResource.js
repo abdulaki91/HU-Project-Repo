@@ -2,8 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import api from "../api/api";
 
 const useFetchResource = (resource, queryKey, enabled = true) => {
+  const resolvedKey = Array.isArray(queryKey) ? queryKey : [queryKey];
   return useQuery({
-    queryKey: [queryKey],
+    queryKey: resolvedKey,
     queryFn: async () => {
       const { data } = await api.get(`/${resource}`);
       return data || [];

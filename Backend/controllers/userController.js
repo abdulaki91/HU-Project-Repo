@@ -58,11 +58,12 @@ export const getUserByIdController = async (req, res) => {
 ============================================= */
 export const updateUserController = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params; // id from route /update/:id
     const { firstName, lastName, email, batch, department } = req.body;
 
     const userId = req.user.id;
-    if (parseInt(id) !== userId) {
+    console.log(userId, id);
+    if (parseInt(id) !== parseInt(userId)) {
       return res
         .status(403)
         .json({ message: "You can only update your own account" });

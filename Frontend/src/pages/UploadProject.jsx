@@ -65,6 +65,13 @@ export function UploadProject() {
     e.preventDefault();
     const formData = buildFormData();
 
+    // Log form data for debugging
+    const data = {};
+    for (let [key, value] of formData.entries()) {
+      data[key] = value;
+    }
+    console.log("Form Data:", data);
+
     setMode("create");
     createProject(
       {
@@ -128,13 +135,7 @@ export function UploadProject() {
               <Label htmlFor="course" className="dark:text-slate-200">
                 Course
               </Label>
-              <Select
-                name="course"
-                required
-                onValueChange={(value) =>
-                  (formRef.current.course.value = value)
-                }
-              >
+              <Select name="course" required>
                 <SelectTrigger
                   id="course"
                   className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
@@ -155,11 +156,7 @@ export function UploadProject() {
               <Label htmlFor="batch" className="dark:text-slate-200">
                 Batch/Year
               </Label>
-              <Select
-                name="batch"
-                required
-                onValueChange={(value) => (formRef.current.batch.value = value)}
-              >
+              <Select name="batch" required>
                 <SelectTrigger
                   id="batch"
                   className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
@@ -180,13 +177,7 @@ export function UploadProject() {
               <Label htmlFor="department" className="dark:text-slate-200">
                 Department
               </Label>
-              <Select
-                name="department"
-                required
-                onValueChange={(value) =>
-                  (formRef.current.department.value = value)
-                }
-              >
+              <Select name="department" required>
                 <SelectTrigger
                   id="department"
                   className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
@@ -220,10 +211,6 @@ export function UploadProject() {
                 className="dark:bg-slate-700 dark:border-slate-600 dark:text-white"
               />
             </div>
-
-            <input type="hidden" name="course" />
-            <input type="hidden" name="batch" />
-            <input type="hidden" name="department" />
           </div>
           {/* Tags */}
           <div className="space-y-2">

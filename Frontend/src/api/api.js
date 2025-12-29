@@ -2,7 +2,7 @@ import axios from "axios";
 // import toast from "react-hot-toast";
 
 const api = axios.create({
-  baseURL: "http://localhost:8000/api", //https://attendio-backend.abdiko.com  //http://localhost:8000/api
+  baseURL: "http://localhost:8000/api",
 });
 
 let isLoggingOut = false; // ✅ Prevent duplicate toasts & redirects
@@ -18,32 +18,24 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response) {
-      const message = error.response.data?.message;
+    const status = error.response?.status;
+    const message = error.response?.data?.message || "";
+    const url = error.config?.url || "";
 
-      // Handle expired token or unauthorized
-      if (
-        !isLoggingOut &&
-        (message?.toLowerCase().includes("expired") ||
-          error.response.status === 401)
-      ) {
-        isLoggingOut = true; // ✅ Prevent multiple runs
-        // toast.error(message || "Session expired, please log in again");
+    // Do NOT auto-logout on login failure
+    if (url.includes("/user/login")) {
+      return Promise.reject(error);
+    }
 
-        setTimeout(() => {
-          localStorage.removeItem("token");
-          window.location.href = "/login";
-          isLoggingOut = false; // reset for future sessions
-        }, 2000);
-      } else if (message) {
-        // toast.error(message);
-      }
-    } else {
-      // toast.error("Network error. Please try again.");
+    // ✅ Auto logout only for expired session
+    if (status === 401 && message.toLowerCase().includes("expired")) {
+      localStorage.removeItem("token");
+      window.location.href = "/login";
     }
 
     return Promise.reject(error);
   }
 );
+
 
 export default api;

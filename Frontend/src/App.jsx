@@ -8,6 +8,7 @@ import { SignUp } from "./pages/SignUp";
 import { HomePage } from "./pages/HomePage";
 import { UploadProject } from "./pages/UploadProject";
 import { BrowseProjects } from "./pages/BrowseProjects";
+import { PendingProjects } from "./pages/PendingProjects";
 import { Dashboard } from "./pages/Dashboard";
 import { Profile } from "./pages/Profile";
 import { PageNotFound } from "./pages/PgaeNotFound";
@@ -15,6 +16,7 @@ import { Unauthorized } from "./pages/Unauthorized";
 
 // Route guards
 import { PrivateRoute } from "./components/PrivateRoute";
+import { RequireSuperAdmin } from "./components/RequireSuperAdmin";
 
 export default function App() {
   return (
@@ -37,7 +39,15 @@ export default function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/upload" element={<UploadProject />} />
             <Route path="/browse" element={<BrowseProjects />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/pending" element={<PendingProjects />} />
+            <Route
+              path="/dashboard"
+              element={
+                <RequireSuperAdmin>
+                  <Dashboard />
+                </RequireSuperAdmin>
+              }
+            />
             <Route path="/profile" element={<Profile />} />
           </Route>
           {/* Fallback route */}

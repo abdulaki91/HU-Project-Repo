@@ -31,6 +31,7 @@ export const addProject = async (req, res) => {
       file_path,
       downloads: 0,
       views: 0,
+      status: "pending",
     };
 
     // Ensure author_name and department are set (prefer server-side user info)
@@ -42,9 +43,8 @@ export const addProject = async (req, res) => {
     projectData.author_name = projectData.author_name || authorNameFromUser;
     projectData.department = projectData.department || user.department || null;
 
-    // await Project.createProject(projectData);
+    await Project.createProject(projectData);
 
-    console.log(projectData);
     res.status(201).json({ message: "Project created successfully" });
   } catch (err) {
     console.log(err);
@@ -122,9 +122,14 @@ export const removeProject = async (req, res) => {
 export const getUserProjects = async (req, res) => {
   try {
     const { course, batch } = req.query;
+    const user = req.user;
 
     const filters = { course, batch };
-    const projects = await Project.getUserProjects(filters);
+    if (user.role === "admin" && user.department) {
+      filters.department = user.department;
+    }
+    const options = user.role === "admin" ? { includePending: true } : {};
+    const projects = await Project.getUserProjects(filters, options);
 
     res.json(projects);
   } catch (err) {
@@ -211,10 +216,10 @@ export const setProjectStatus = async (req, res) => {
         .status(403)
         .json({ message: "Only admins can change project status" });
 
-    // Ensure admin's department matches project's course (department -> course mapping)
+    // Ensure admin's department matches project's department (using course as department)
     if (
-      user.department &&
-      project.course &&
+      !user.department ||
+      !project.course ||
       user.department !== project.course
     ) {
       return res

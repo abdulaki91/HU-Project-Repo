@@ -30,7 +30,7 @@ export const insertUser = async (
   batch,
   department,
   verificationToken,
-  role = "lecturer"
+  role = "student"
 ) => {
   const sql = `
     INSERT INTO users 

@@ -4,6 +4,13 @@ import { Button } from "./Button";
 import { Badge } from "./Badge";
 import { Download, User, Calendar } from "lucide-react";
 import { formatBytes } from "../utils/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./Select";
 
 export default function ProjectCard({
   project,
@@ -13,6 +20,7 @@ export default function ProjectCard({
   onEdit,
   onApprove,
   onReject,
+  onStatusChange,
   variant = "grid",
 }) {
   const isAuthor = currentUserId && currentUserId === project.author_id;
@@ -20,7 +28,7 @@ export default function ProjectCard({
     currentUser &&
     currentUser.role === "admin" &&
     currentUser.department === project.course;
-
+  console.log(project);
   return (
     <Card
       key={project.id}
@@ -38,17 +46,20 @@ export default function ProjectCard({
           )}
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+        <div className="flex gap-2 text-sm text-slate-500 dark:text-slate-400 flex-col">
           <Badge
             variant="outline"
             className="dark:border-slate-600 dark:text-slate-300"
           >
             {project.course}
           </Badge>
-          <span>•</span>
-          <span>Batch {project.batch}</span>
+          <p className="space-x-2 ">
+            <span>•</span>
+            <span>Batch {project.batch}</span>
+          </p>
           {project.status ? (
             <span className="ml-2">
+              Status:{" "}
               {project.status === "approved" && (
                 <Badge variant="default">Approved</Badge>
               )}
@@ -72,6 +83,9 @@ export default function ProjectCard({
               {tag}
             </Badge>
           ))}
+          <div className="text-slate-500 dark:text-slate-200 text-sm">
+            Department : {project.department}
+          </div>
         </div>
 
         <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">
@@ -80,32 +94,31 @@ export default function ProjectCard({
               <Download className="h-3 w-3" />
               {project.downloads}
             </div>
+            <div>Uploaded by: {project.author_name}</div>
           </div>
 
           <div className="flex items-center gap-2">
-            {isAuthor && (
+            {(isAuthor || (isAdmin && project.status !== "pending")) && (
               <Button size="sm" onClick={() => onEdit && onEdit(project)}>
                 Edit
               </Button>
             )}
 
             {isAdmin && project.status === "pending" ? (
-              <>
-                <Button
-                  size="sm"
-                  variant="default"
-                  onClick={() => onApprove && onApprove(project)}
-                >
-                  Approve
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => onReject && onReject(project)}
-                >
-                  Reject
-                </Button>
-              </>
+              <Select
+                value={project.status}
+                onValueChange={(value) =>
+                  onStatusChange && onStatusChange(project.id, value)
+                }
+              >
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
             ) : (
               <Button
                 size="sm"

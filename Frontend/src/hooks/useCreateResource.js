@@ -18,5 +18,5 @@ const useCreateResource = (resource, queryKey) => {
     },
   });
 };
-
+ 
 export default useCreateResource;

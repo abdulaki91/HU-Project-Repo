@@ -9,11 +9,13 @@ import {
   Moon,
   Sun,
   LogOut,
+  FileText,
 } from "lucide-react";
 import { Button } from "../components/Button";
 import { useTheme } from "../components/ThemeProvider";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { use } from "react";
 
 export function Sidebar({ currentPage, isOpen, onToggle, setIsOpen }) {
   const { theme, toggleTheme } = useTheme();
@@ -27,6 +29,9 @@ export function Sidebar({ currentPage, isOpen, onToggle, setIsOpen }) {
     { id: "/", label: "Home", icon: Home },
     { id: "upload", label: "Upload Project", icon: Upload },
     { id: "browse", label: "Browse Projects", icon: FolderSearch },
+    ...(user?.role === "admin"
+      ? [{ id: "pending", label: "Pending Projects", icon: FileText }]
+      : []),
     { id: "dashboard", label: "Dashboard", icon: BarChart3 },
     { id: "profile", label: "Profile", icon: User },
   ];
@@ -157,6 +162,16 @@ export function Sidebar({ currentPage, isOpen, onToggle, setIsOpen }) {
                 <div>
                   <p className="text-slate-900 dark:text-white text-xs sm:text-sm md:text-base lg:text-lg">
                     {user?.firstName + " " + user?.lastName || "User Name"}
+                  </p>
+                  <p>
+                    <span className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs md:text-sm lg:text-base">
+                      {user?.department || "user@example.com"}
+                    </span>
+                    <p>
+                      <span className="mx-1 text-sm text-slate-500 dark:text-slate-400">
+                        {user?.email ? `${user.email}` : ""}
+                      </span>
+                    </p>
                   </p>
                   <p className="text-slate-500 capitalize dark:text-slate-400 text-[10px] sm:text-xs md:text-sm lg:text-base">
                     {user?.role || "Role"}

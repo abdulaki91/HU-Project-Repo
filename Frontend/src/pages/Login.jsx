@@ -10,7 +10,6 @@ import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 import { toast } from "react-toastify";
-// import toast from "react-hot-toast";
 
 export function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -25,7 +24,6 @@ export function Login() {
   });
 
   const handleChange = (e) => {
-    e.preventDefault();
     setForm({ ...form, [e.target.id]: e.target.value });
   };
 

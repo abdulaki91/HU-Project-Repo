@@ -34,8 +34,8 @@ export const getProjectById = (id) =>
 export const createProject = (project) => {
   const sql = `
     INSERT INTO projects 
-    (title, description, course, department, author_name, batch, tags, author_id, file_path, downloads, views)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (title, description, course, department, author_name, batch, tags, author_id, file_path, downloads, status, views)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   let {
@@ -49,16 +49,23 @@ export const createProject = (project) => {
     author_id,
     file_path,
     downloads,
+    status,
     views,
   } = project;
 
   // Ensure no undefined bind params (use null where appropriate)
-  if (typeof tags === "undefined" || tags === null) tags = [];
-  if (typeof file_path === "undefined") file_path = null;
-  if (typeof downloads === "undefined" || downloads === null) downloads = 0;
-  if (typeof views === "undefined" || views === null) views = 0;
+  if (typeof title === "undefined") title = null;
+  if (typeof description === "undefined") description = null;
+  if (typeof course === "undefined") course = null;
   if (typeof department === "undefined") department = null;
   if (typeof author_name === "undefined") author_name = null;
+  if (typeof batch === "undefined") batch = null;
+  if (typeof tags === "undefined" || tags === null) tags = [];
+  if (typeof author_id === "undefined") author_id = null;
+  if (typeof file_path === "undefined") file_path = null;
+  if (typeof downloads === "undefined" || downloads === null) downloads = 0;
+  if (typeof status === "undefined") status = "pending";
+  if (typeof views === "undefined" || views === null) views = 0;
 
   return db.execute(sql, [
     title,
@@ -71,6 +78,7 @@ export const createProject = (project) => {
     author_id,
     file_path,
     downloads,
+    status,
     views,
   ]);
 };
@@ -142,7 +150,7 @@ export const deleteProject = (id) => {
   return db.execute("DELETE FROM projects WHERE id = ?", [id]);
 };
 
-export const getUserProjects = async (filters = {}) => {
+export const getUserProjects = async (filters = {}, options = {}) => {
   // Build dynamic WHERE clause based on filters; fetch projects from all users
   let sql = "SELECT * FROM projects";
   const conditions = [];
@@ -156,6 +164,16 @@ export const getUserProjects = async (filters = {}) => {
   if (filters.batch && filters.batch !== "all") {
     conditions.push("batch = ?");
     params.push(filters.batch);
+  }
+
+  if (filters.department && filters.department !== "all") {
+    conditions.push("department = ?");
+    params.push(filters.department);
+  }
+
+  // Only return approved projects for public browsing
+  if (!options.includePending) {
+    conditions.push("status = 'approved'");
   }
 
   if (conditions.length > 0) {

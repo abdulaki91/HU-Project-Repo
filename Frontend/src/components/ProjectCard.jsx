@@ -18,8 +18,6 @@ export default function ProjectCard({
   currentUserId,
   onDownload,
   onEdit,
-  onApprove,
-  onReject,
   onStatusChange,
   variant = "grid",
 }) {
@@ -28,11 +26,13 @@ export default function ProjectCard({
     currentUser &&
     currentUser.role === "admin" &&
     currentUser.department === project.course;
-  console.log(project);
+
   return (
     <Card
       key={project.id}
-      className="p-6 hover:shadow-lg transition-shadow dark:bg-slate-800 dark:border-slate-700"
+      className="p-6 border transition-all hover:shadow-lg
+                 bg-white hover:bg-sky-100 dark:bg-slate-800 dark:hover:bg-slate-700
+                 border-slate-200 dark:border-slate-700"
     >
       <div className="space-y-4">
         <div>
@@ -53,11 +53,11 @@ export default function ProjectCard({
           >
             {project.course}
           </Badge>
-          <p className="space-x-2 ">
+          <p className="space-x-2">
             <span>•</span>
             <span>Batch {project.batch}</span>
           </p>
-          {project.status ? (
+          {project.status && (
             <span className="ml-2">
               Status:{" "}
               {project.status === "approved" && (
@@ -70,7 +70,7 @@ export default function ProjectCard({
                 <Badge variant="outline">Pending</Badge>
               )}
             </span>
-          ) : null}
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -84,7 +84,7 @@ export default function ProjectCard({
             </Badge>
           ))}
           <div className="text-slate-500 dark:text-slate-200 text-sm">
-            Department : {project.department}
+            Department: {project.department}
           </div>
         </div>
 
@@ -99,7 +99,7 @@ export default function ProjectCard({
 
           <div className="flex items-center gap-2">
             {(isAuthor || (isAdmin && project.status !== "pending")) && (
-              <Button size="sm" onClick={() => onEdit && onEdit(project)}>
+              <Button size="sm" onClick={() => onEdit(project)}>
                 Edit
               </Button>
             )}
@@ -107,9 +107,7 @@ export default function ProjectCard({
             {isAdmin && project.status === "pending" ? (
               <Select
                 value={project.status}
-                onValueChange={(value) =>
-                  onStatusChange && onStatusChange(project.id, value)
-                }
+                onValueChange={(value) => onStatusChange(project.id, value)}
               >
                 <SelectTrigger className="w-32">
                   <SelectValue />
@@ -120,10 +118,7 @@ export default function ProjectCard({
                 </SelectContent>
               </Select>
             ) : (
-              <Button
-                size="sm"
-                onClick={() => onDownload && onDownload(project)}
-              >
+              <Button size="sm" onClick={() => onDownload(project)}>
                 <Download className="h-4 w-4 mr-2" />
                 Download
               </Button>
@@ -141,12 +136,12 @@ export default function ProjectCard({
               ? new Date(project.created_at).toLocaleDateString()
               : ""}
           </span>
-          {project.file_size ? (
+          {project.file_size && (
             <>
               <span>•</span>
               <span>{formatBytes(project.file_size)}</span>
             </>
-          ) : null}
+          )}
         </div>
       </div>
     </Card>

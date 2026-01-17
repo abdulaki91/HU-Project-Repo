@@ -201,14 +201,15 @@ export const setProjectStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body; // expected 'approved' or 'rejected'
     const userId = req.user?.id;
+
     const user = await User.findUserById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
 
     const [rows] = await Project.getProjectById(id);
     if (!rows || rows.length === 0)
       return res.status(404).json({ message: "Project not found" });
 
     const project = rows[0];
+
 
     // Only allow admins to change status
     if (req.user.role !== "admin")

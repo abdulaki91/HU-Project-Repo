@@ -1,4 +1,3 @@
-// hooks/useEditResource.js
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/api";
 import { toast } from "react-toastify";
@@ -8,7 +7,7 @@ export default function useEditResource(resource, queryKey) {
 
   return useMutation({
     mutationFn: async (data) => {
-      const { id, ...rest } = data; // separate ID from rest of fields
+      const { id, ...rest } = data;
       const { data: response } = await api.put(`/${resource}/${id}`, rest);
       return response;
     },
@@ -18,7 +17,12 @@ export default function useEditResource(resource, queryKey) {
       queryClient.invalidateQueries({ queryKey: key });
     },
     onError: (err) => {
-      toast.error("Failed to update.");
+      // Extract error message from backend response
+      const message =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Failed to update";
+      toast.error(message);
       console.error(err);
     },
   });

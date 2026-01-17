@@ -4,10 +4,8 @@ import * as Auth from "../controllers/authController.js";
 import { authenticateUser } from "../middlware/authenticate.js";
 
 const router = express.Router();
-
 // Initialize table
 router.get("/create-user-table", User.createUserTableController);
-
 // Register new user (teacher or admin)
 router.post("/register", Auth.registerUser);
 

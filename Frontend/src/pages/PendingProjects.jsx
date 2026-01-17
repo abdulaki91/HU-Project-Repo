@@ -5,7 +5,7 @@ import ProjectFilters from "../components/ProjectFilters";
 import StatusUpdateModal from "../components/StatusUpdateModal";
 import useFetchResource from "../hooks/useFetchResource";
 import { useQueryClient } from "@tanstack/react-query";
-import api from "../api/api";
+import useEditResource from "../hooks/useEditResource";
 
 export function PendingProjects() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -27,9 +27,10 @@ export function PendingProjects() {
     resource,
     queryKey
   );
+  const editProject = useEditResource("project/status", ["projects"]);
 
   const queryClient = useQueryClient();
-  const { data: me } = useFetchResource("user/me", "user-me");
+  // const { data: me } = useFetchResource("user/me", "user-me");
 
   const pendingProjects = allProjects.filter(
     (project) => project.status === "pending"
@@ -48,13 +49,10 @@ export function PendingProjects() {
     setStatusModalOpen(true);
   };
 
-  const handleStatusUpdate = async (projectId, status) => {
-    try {
-      await api.put(`/project/status/${projectId}`, { status });
-      queryClient.invalidateQueries({ queryKey });
-    } catch (error) {
-      console.error("Status update failed", error);
-    }
+  const handleStatusUpdate = (projectId, status) => {
+    if (editProject.isPending) return;
+
+    editProject.mutate({ id: projectId, status });
   };
 
   const currentYear = new Date().getFullYear();
@@ -67,7 +65,7 @@ export function PendingProjects() {
         <p className="text-slate-500">Review and update project status</p>
       </div>
 
-      <Card className="p-6">
+      <Card className="p-6 bg-slate-800">
         <ProjectFilters
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
@@ -95,8 +93,8 @@ export function PendingProjects() {
         >
           {filteredProjects.map((project) => (
             <div
-              title=" Click to edit the project"
-              className="cursor-pointer hover:shadow-lg  rounded-lg transition-shadow"
+              title=" Click to edit the project "
+              className="cursor-pointer hover:shadow-lg  rounded-lg transition-shadow "
               key={project.id}
               onClick={() => openStatusModal(project)}
             >

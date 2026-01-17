@@ -204,13 +204,13 @@ export const setProjectStatus = async (req, res) => {
 
     const user = await User.findUserById(userId);
 
+
     const [rows] = await Project.getProjectById(id);
     if (!rows || rows.length === 0)
       return res.status(404).json({ message: "Project not found" });
-
+    
     const project = rows[0];
-
-
+    console.log(project.course);
     // Only allow admins to change status
     if (req.user.role !== "admin")
       return res
@@ -221,7 +221,7 @@ export const setProjectStatus = async (req, res) => {
     if (
       !user.department ||
       !project.course ||
-      user.department !== project.course
+      user.department !== project.department
     ) {
       return res
         .status(403)

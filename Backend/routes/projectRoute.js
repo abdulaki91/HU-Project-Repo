@@ -19,5 +19,6 @@ router.post(
 router.put("/update/:id", authenticateUser, Project.editProject); // UPDATE project
 router.delete("/delete/:id", authenticateUser, Project.removeProject); // DELETE project
 router.put("/status/:id", authenticateUser, roleMiddleware(["admin"]), Project.setProjectStatus); // Admin approve/reject
+router.get("/pending", authenticateUser, roleMiddleware(["admin"]), Project.getPendingProjects); // GET pending projects for admin
 
 export default router;

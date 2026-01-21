@@ -204,13 +204,11 @@ export const setProjectStatus = async (req, res) => {
 
     const user = await User.findUserById(userId);
 
-
     const [rows] = await Project.getProjectById(id);
     if (!rows || rows.length === 0)
       return res.status(404).json({ message: "Project not found" });
-    
+
     const project = rows[0];
-    console.log(project.course);
     // Only allow admins to change status
     if (req.user.role !== "admin")
       return res
@@ -239,5 +237,30 @@ export const setProjectStatus = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to update project status" });
+  }
+};
+
+export const getPendingProjects = async (req, res) => {
+  try {
+    const { department, role } = req.user;
+
+    if (role !== "admin") {
+      return res
+        .status(403)
+        .json({ message: "Only admins can view pending projects" });
+    }
+
+    if (!department) {
+      return res.status(400).json({ message: "Admin department not defined" });
+    }
+
+    const [projects] = await Project.getPendingProjectsModel(department);
+    z;
+    return res.status(200).json(projects);
+  } catch (err) {
+    console.error(err);
+    return res
+      .status(500)
+      .json({ message: "Failed to fetch pending projects" });
   }
 };

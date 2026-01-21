@@ -293,3 +293,10 @@ export const incrementDownloads = (projectId) => {
   const sql = `UPDATE projects SET downloads = downloads + 1 WHERE id = ?`;
   return db.execute(sql, [projectId]);
 };
+
+
+// getting pending projects from the same department as admin
+export const getPendingProjectsModel = (department) => {
+  const sql = `SELECT * FROM projects WHERE status = 'pending' AND department = ? ORDER BY created_at DESC`;
+  return db.execute(sql, [department]);
+};

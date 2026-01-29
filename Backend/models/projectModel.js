@@ -15,14 +15,25 @@ export const createProjectsTable = () => {
       batch VARCHAR(50),
       tags JSON,
       author_id INT NOT NULL,
-      file_path VARCHAR(255),  -- <--- ADD THIS
+      file_path VARCHAR(255),
+      file_size BIGINT DEFAULT NULL,
+      file_type VARCHAR(100) DEFAULT NULL,
       downloads INT DEFAULT 0,
       status ENUM('pending', 'approved','rejected') DEFAULT 'pending',
+      rejectionReason TEXT DEFAULT NULL,
       views INT DEFAULT 0,
+      featured BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       CONSTRAINT fk_author FOREIGN KEY (author_id) 
-        REFERENCES users(id) ON DELETE CASCADE
+        REFERENCES users(id) ON DELETE CASCADE,
+      INDEX idx_status (status),
+      INDEX idx_department (department),
+      INDEX idx_batch (batch),
+      INDEX idx_course (course),
+      INDEX idx_author_id (author_id),
+      INDEX idx_created_at (created_at),
+      FULLTEXT INDEX idx_search (title, description, author_name)
     );
   `;
   return db.execute(sql);
@@ -224,7 +235,7 @@ export const getUserProjects = async (filters = {}, options = {}) => {
         tags,
         file_size,
       };
-    })
+    }),
   );
 
   return projects;
@@ -283,7 +294,7 @@ export const getProjectsByAuthor = async (authorId, filters = {}) => {
       }
 
       return { ...p, tags, file_size };
-    })
+    }),
   );
 
   return projects;
@@ -294,9 +305,563 @@ export const incrementDownloads = (projectId) => {
   return db.execute(sql, [projectId]);
 };
 
-
 // getting pending projects from the same department as admin
 export const getPendingProjectsModel = (department) => {
   const sql = `SELECT * FROM projects WHERE status = 'pending' AND department = ? ORDER BY created_at DESC`;
   return db.execute(sql, [department]);
+};
+// ✅ Get projects with pagination and advanced filtering
+export const getProjectsWithPagination = async (filters = {}, options = {}) => {
+  const {
+    page = 1,
+    limit = 10,
+    sortBy = "created_at",
+    sortOrder = "desc",
+  } = options;
+  const offset = (page - 1) * limit;
+
+  let whereClause = "WHERE 1=1";
+  const params = [];
+
+  if (filters.course && filters.course !== "all") {
+    whereClause += " AND course = ?";
+    params.push(filters.course);
+  }
+
+  if (filters.batch && filters.batch !== "all") {
+    whereClause += " AND batch = ?";
+    params.push(filters.batch);
+  }
+
+  if (filters.department && filters.department !== "all") {
+    whereClause += " AND department = ?";
+    params.push(filters.department);
+  }
+
+  if (filters.status) {
+    whereClause += " AND status = ?";
+    params.push(filters.status);
+  }
+
+  if (filters.search) {
+    whereClause +=
+      " AND (MATCH(title, description, author_name) AGAINST(? IN NATURAL LANGUAGE MODE) OR title LIKE ? OR description LIKE ?)";
+    const searchTerm = `%${filters.search}%`;
+    params.push(filters.search, searchTerm, searchTerm);
+  }
+
+  if (filters.featured) {
+    whereClause += " AND featured = TRUE";
+  }
+
+  // Validate sort parameters
+  const allowedSortFields = [
+    "created_at",
+    "updated_at",
+    "title",
+    "downloads",
+    "views",
+  ];
+  const sortField = allowedSortFields.includes(sortBy) ? sortBy : "created_at";
+  const sortDirection = sortOrder.toLowerCase() === "asc" ? "ASC" : "DESC";
+
+  const countSql = `SELECT COUNT(*) as total FROM projects ${whereClause}`;
+  const dataSql = `
+    SELECT p.*, u.firstName, u.lastName, u.email as author_email
+    FROM projects p
+    LEFT JOIN users u ON p.author_id = u.id
+    ${whereClause}
+    ORDER BY p.${sortField} ${sortDirection}
+    LIMIT ? OFFSET ?
+  `;
+
+  const [countResult] = await db.execute(countSql, params);
+  const [dataResult] = await db.execute(dataSql, [...params, limit, offset]);
+
+  // Process results
+  const projects = await Promise.all(
+    dataResult.map(async (p) => {
+      let tags = p.tags;
+      if (typeof tags === "string") {
+        try {
+          tags = JSON.parse(tags);
+        } catch (e) {
+          tags = [];
+        }
+      }
+      if (!Array.isArray(tags)) tags = [];
+
+      // Get file info if file exists
+      let fileInfo = null;
+      if (p.file_path) {
+        try {
+          const uploadsDir = path.resolve("uploads", "projects");
+          const requestedPath = path.resolve(p.file_path);
+          if (
+            requestedPath.startsWith(uploadsDir) &&
+            fs.existsSync(requestedPath)
+          ) {
+            const stat = await fs.promises.stat(requestedPath);
+            fileInfo = {
+              size: stat.size,
+              type: path.extname(requestedPath),
+              exists: true,
+            };
+          }
+        } catch (e) {
+          fileInfo = { exists: false };
+        }
+      }
+
+      return {
+        ...p,
+        tags,
+        fileInfo,
+        author: {
+          firstName: p.firstName,
+          lastName: p.lastName,
+          email: p.author_email,
+        },
+      };
+    }),
+  );
+
+  return {
+    projects,
+    total: countResult[0].total,
+    page,
+    limit,
+    totalPages: Math.ceil(countResult[0].total / limit),
+  };
+};
+
+// ✅ Search projects with full-text search
+export const searchProjects = async (searchTerm, options = {}) => {
+  const { page = 1, limit = 10 } = options;
+  const offset = (page - 1) * limit;
+
+  const countSql = `
+    SELECT COUNT(*) as total 
+    FROM projects 
+    WHERE status = 'approved' 
+    AND (MATCH(title, description, author_name) AGAINST(? IN NATURAL LANGUAGE MODE) 
+         OR title LIKE ? OR description LIKE ? OR author_name LIKE ?)
+  `;
+
+  const dataSql = `
+    SELECT p.*, u.firstName, u.lastName,
+           MATCH(p.title, p.description, p.author_name) AGAINST(? IN NATURAL LANGUAGE MODE) as relevance
+    FROM projects p
+    LEFT JOIN users u ON p.author_id = u.id
+    WHERE p.status = 'approved' 
+    AND (MATCH(p.title, p.description, p.author_name) AGAINST(? IN NATURAL LANGUAGE MODE) 
+         OR p.title LIKE ? OR p.description LIKE ? OR p.author_name LIKE ?)
+    ORDER BY relevance DESC, p.created_at DESC
+    LIMIT ? OFFSET ?
+  `;
+
+  const searchPattern = `%${searchTerm}%`;
+  const countParams = [searchTerm, searchPattern, searchPattern, searchPattern];
+  const dataParams = [
+    searchTerm,
+    searchTerm,
+    searchPattern,
+    searchPattern,
+    searchPattern,
+    limit,
+    offset,
+  ];
+
+  const [countResult] = await db.execute(countSql, countParams);
+  const [dataResult] = await db.execute(dataSql, dataParams);
+
+  const projects = dataResult.map((p) => ({
+    ...p,
+    tags:
+      typeof p.tags === "string" ? JSON.parse(p.tags || "[]") : p.tags || [],
+    author: {
+      firstName: p.firstName,
+      lastName: p.lastName,
+    },
+  }));
+
+  return {
+    projects,
+    total: countResult[0].total,
+    page,
+    limit,
+    totalPages: Math.ceil(countResult[0].total / limit),
+  };
+};
+
+// ✅ Increment views
+export const incrementViews = (projectId) => {
+  const sql = `UPDATE projects SET views = views + 1 WHERE id = ?`;
+  return db.execute(sql, [projectId]);
+};
+
+// ✅ Get project statistics
+export const getGlobalProjectStats = async () => {
+  const sql = `
+    SELECT 
+      COUNT(*) as totalProjects,
+      SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approvedProjects,
+      SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pendingProjects,
+      SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejectedProjects,
+      SUM(downloads) as totalDownloads,
+      SUM(views) as totalViews,
+      COUNT(DISTINCT author_id) as uniqueAuthors,
+      COUNT(DISTINCT department) as departments,
+      SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) as newProjectsThisMonth
+    FROM projects
+  `;
+  const [rows] = await db.execute(sql);
+  return rows[0];
+};
+
+// ✅ Get department-specific statistics
+export const getDepartmentProjectStats = async (department) => {
+  const sql = `
+    SELECT 
+      COUNT(*) as totalProjects,
+      SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approvedProjects,
+      SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pendingProjects,
+      SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejectedProjects,
+      SUM(downloads) as totalDownloads,
+      SUM(views) as totalViews,
+      COUNT(DISTINCT author_id) as uniqueAuthors,
+      SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) as newProjectsThisMonth
+    FROM projects
+    WHERE department = ?
+  `;
+  const [rows] = await db.execute(sql, [department]);
+  return rows[0];
+};
+
+// ✅ Get user-specific statistics
+export const getUserProjectStats = async (userId) => {
+  const sql = `
+    SELECT 
+      COUNT(*) as totalProjects,
+      SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approvedProjects,
+      SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pendingProjects,
+      SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejectedProjects,
+      SUM(downloads) as totalDownloads,
+      SUM(views) as totalViews,
+      MAX(created_at) as lastProjectDate
+    FROM projects
+    WHERE author_id = ?
+  `;
+  const [rows] = await db.execute(sql, [userId]);
+  return rows[0];
+};
+
+// ✅ Get trending projects (most downloaded/viewed recently)
+export const getTrendingProjects = async (limit = 10, days = 7) => {
+  const sql = `
+    SELECT p.*, u.firstName, u.lastName,
+           (p.downloads + p.views) as popularity_score
+    FROM projects p
+    LEFT JOIN users u ON p.author_id = u.id
+    WHERE p.status = 'approved' 
+    AND p.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+    ORDER BY popularity_score DESC, p.created_at DESC
+    LIMIT ?
+  `;
+  const [rows] = await db.execute(sql, [days, limit]);
+
+  return rows.map((p) => ({
+    ...p,
+    tags:
+      typeof p.tags === "string" ? JSON.parse(p.tags || "[]") : p.tags || [],
+    author: {
+      firstName: p.firstName,
+      lastName: p.lastName,
+    },
+  }));
+};
+
+// ✅ Get featured projects
+export const getFeaturedProjects = async (limit = 5) => {
+  const sql = `
+    SELECT p.*, u.firstName, u.lastName
+    FROM projects p
+    LEFT JOIN users u ON p.author_id = u.id
+    WHERE p.status = 'approved' AND p.featured = TRUE
+    ORDER BY p.created_at DESC
+    LIMIT ?
+  `;
+  const [rows] = await db.execute(sql, [limit]);
+
+  return rows.map((p) => ({
+    ...p,
+    tags:
+      typeof p.tags === "string" ? JSON.parse(p.tags || "[]") : p.tags || [],
+    author: {
+      firstName: p.firstName,
+      lastName: p.lastName,
+    },
+  }));
+};
+
+// ✅ Toggle featured status (admin only)
+export const toggleFeaturedStatus = (projectId, featured = true) => {
+  const sql = `UPDATE projects SET featured = ? WHERE id = ?`;
+  return db.execute(sql, [featured, projectId]);
+};
+
+// ✅ Get projects by multiple IDs
+export const getProjectsByIds = async (projectIds) => {
+  if (!projectIds || projectIds.length === 0) return [];
+
+  const placeholders = projectIds.map(() => "?").join(",");
+  const sql = `
+    SELECT p.*, u.firstName, u.lastName
+    FROM projects p
+    LEFT JOIN users u ON p.author_id = u.id
+    WHERE p.id IN (${placeholders})
+    ORDER BY p.created_at DESC
+  `;
+
+  const [rows] = await db.execute(sql, projectIds);
+
+  return rows.map((p) => ({
+    ...p,
+    tags:
+      typeof p.tags === "string" ? JSON.parse(p.tags || "[]") : p.tags || [],
+    author: {
+      firstName: p.firstName,
+      lastName: p.lastName,
+    },
+  }));
+};
+
+// ✅ Get related projects (same department/course)
+export const getRelatedProjects = async (projectId, limit = 5) => {
+  const sql = `
+    SELECT p2.*, u.firstName, u.lastName
+    FROM projects p1
+    JOIN projects p2 ON (p1.department = p2.department OR p1.course = p2.course)
+    LEFT JOIN users u ON p2.author_id = u.id
+    WHERE p1.id = ? AND p2.id != ? AND p2.status = 'approved'
+    ORDER BY 
+      CASE WHEN p1.department = p2.department THEN 1 ELSE 2 END,
+      CASE WHEN p1.course = p2.course THEN 1 ELSE 2 END,
+      p2.created_at DESC
+    LIMIT ?
+  `;
+
+  const [rows] = await db.execute(sql, [projectId, projectId, limit]);
+
+  return rows.map((p) => ({
+    ...p,
+    tags:
+      typeof p.tags === "string" ? JSON.parse(p.tags || "[]") : p.tags || [],
+    author: {
+      firstName: p.firstName,
+      lastName: p.lastName,
+    },
+  }));
+};
+
+// ✅ Bulk update project status
+export const bulkUpdateProjectStatus = async (
+  projectIds,
+  status,
+  rejectionReason = null,
+) => {
+  if (!projectIds || projectIds.length === 0) return;
+
+  const placeholders = projectIds.map(() => "?").join(",");
+  let sql = `UPDATE projects SET status = ?`;
+  const params = [status];
+
+  if (status === "rejected" && rejectionReason) {
+    sql += ", rejectionReason = ?";
+    params.push(rejectionReason);
+  }
+
+  sql += ` WHERE id IN (${placeholders})`;
+  params.push(...projectIds);
+
+  return db.execute(sql, params);
+};
+// ✅ Get advanced analytics
+export const getAdvancedAnalytics = async (
+  timeframe = "30d",
+  department = null,
+) => {
+  const days = parseInt(timeframe.replace("d", ""));
+  let whereClause = `WHERE created_at >= DATE_SUB(NOW(), INTERVAL ${days} DAY)`;
+  const params = [];
+
+  if (department) {
+    whereClause += " AND department = ?";
+    params.push(department);
+  }
+
+  const sql = `
+    SELECT 
+      DATE(created_at) as date,
+      COUNT(*) as total_projects,
+      SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_projects,
+      SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_projects,
+      SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected_projects,
+      SUM(downloads) as total_downloads,
+      SUM(views) as total_views,
+      COUNT(DISTINCT author_id) as unique_authors,
+      AVG(downloads) as avg_downloads_per_project,
+      AVG(views) as avg_views_per_project
+    FROM projects 
+    ${whereClause}
+    GROUP BY DATE(created_at)
+    ORDER BY date DESC
+  `;
+
+  const [rows] = await db.execute(sql, params);
+
+  // Get department breakdown
+  const deptSql = `
+    SELECT 
+      department,
+      COUNT(*) as project_count,
+      SUM(downloads) as total_downloads,
+      SUM(views) as total_views,
+      AVG(downloads) as avg_downloads,
+      AVG(views) as avg_views
+    FROM projects 
+    ${whereClause}
+    GROUP BY department
+    ORDER BY project_count DESC
+  `;
+
+  const [deptRows] = await db.execute(deptSql, params);
+
+  // Get top projects
+  const topSql = `
+    SELECT 
+      id, title, author_name, department, downloads, views,
+      (downloads * 2 + views) as popularity_score
+    FROM projects 
+    ${whereClause}
+    ORDER BY popularity_score DESC
+    LIMIT 10
+  `;
+
+  const [topRows] = await db.execute(topSql, params);
+
+  return {
+    timeline: rows,
+    departmentBreakdown: deptRows,
+    topProjects: topRows,
+    summary: {
+      totalProjects: rows.reduce((sum, row) => sum + row.total_projects, 0),
+      totalDownloads: rows.reduce((sum, row) => sum + row.total_downloads, 0),
+      totalViews: rows.reduce((sum, row) => sum + row.total_views, 0),
+      uniqueAuthors: Math.max(...rows.map((row) => row.unique_authors), 0),
+    },
+  };
+};
+
+// ✅ Get projects for export
+export const getProjectsForExport = async (filters = {}) => {
+  let whereClause = "WHERE 1=1";
+  const params = [];
+
+  if (filters.department) {
+    whereClause += " AND p.department = ?";
+    params.push(filters.department);
+  }
+
+  if (filters.status) {
+    whereClause += " AND p.status = ?";
+    params.push(filters.status);
+  }
+
+  if (filters.dateFrom) {
+    whereClause += " AND p.created_at >= ?";
+    params.push(filters.dateFrom);
+  }
+
+  if (filters.dateTo) {
+    whereClause += " AND p.created_at <= ?";
+    params.push(filters.dateTo);
+  }
+
+  const sql = `
+    SELECT 
+      p.id,
+      p.title,
+      p.description,
+      p.course,
+      p.department,
+      p.batch,
+      p.author_name,
+      p.downloads,
+      p.views,
+      p.status,
+      p.created_at,
+      p.updated_at,
+      u.email as author_email,
+      u.firstName as author_first_name,
+      u.lastName as author_last_name
+    FROM projects p
+    LEFT JOIN users u ON p.author_id = u.id
+    ${whereClause}
+    ORDER BY p.created_at DESC
+  `;
+
+  const [rows] = await db.execute(sql, params);
+
+  return rows.map((row) => ({
+    ...row,
+    tags:
+      typeof row.tags === "string"
+        ? JSON.parse(row.tags || "[]")
+        : row.tags || [],
+  }));
+};
+
+// ✅ Convert projects to CSV
+export const convertToCSV = async (projects) => {
+  const headers = [
+    "ID",
+    "Title",
+    "Description",
+    "Course",
+    "Department",
+    "Batch",
+    "Author Name",
+    "Author Email",
+    "Downloads",
+    "Views",
+    "Status",
+    "Created At",
+    "Updated At",
+    "Tags",
+  ];
+
+  const csvRows = [headers.join(",")];
+
+  projects.forEach((project) => {
+    const row = [
+      project.id,
+      `"${(project.title || "").replace(/"/g, '""')}"`,
+      `"${(project.description || "").replace(/"/g, '""')}"`,
+      project.course || "",
+      project.department || "",
+      project.batch || "",
+      `"${project.author_name || ""}"`,
+      project.author_email || "",
+      project.downloads || 0,
+      project.views || 0,
+      project.status || "",
+      project.created_at || "",
+      project.updated_at || "",
+      `"${Array.isArray(project.tags) ? project.tags.join(";") : ""}"`,
+    ];
+    csvRows.push(row.join(","));
+  });
+
+  return csvRows.join("\n");
 };

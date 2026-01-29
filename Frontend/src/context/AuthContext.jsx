@@ -21,10 +21,10 @@ export function AuthProvider({ children }) {
 
   // fetch user only when token exists
   const {
-    data: user,
+    data: fetchedUser,
     isLoading,
     isError,
-  } = useFetchResource("user/me", "currentUser", !!token);
+  } = useFetchResource("user/me", ["currentUser", token], !!token);
 
   // login mutation
   const loginMutation = useMutation({
@@ -50,6 +50,9 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("token");
     delete api.defaults.headers.common["Authorization"];
   };
+
+  // only expose `user` while a token exists; otherwise treat as null
+  const user = token ? fetchedUser : null;
 
   return (
     <AuthContext.Provider

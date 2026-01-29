@@ -26,18 +26,6 @@ api.interceptors.request.use(
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => {
-    // Transform response to consistent format
-    if (response.data && typeof response.data === "object") {
-      return {
-        ...response,
-        data: {
-          success: response.data.success !== false,
-          data: response.data.data || response.data,
-          message: response.data.message,
-          ...response.data,
-        },
-      };
-    }
     return response;
   },
   (error) => {

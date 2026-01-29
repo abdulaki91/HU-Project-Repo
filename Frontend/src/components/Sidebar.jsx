@@ -32,7 +32,10 @@ export function Sidebar({ currentPage, isOpen, onToggle, setIsOpen }) {
     ...(user?.role === "admin"
       ? [{ id: "pending", label: "Pending Projects", icon: FileText }]
       : []),
-    { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+    // if user is super admin, show dashboard link
+    ...(user?.role === "super_admin"
+      ? [{ id: "dashboard", label: "Dashboard", icon: BarChart3 }]
+      : []),
     { id: "profile", label: "Profile", icon: User },
   ];
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { Label } from "../components/Label";
@@ -6,7 +6,7 @@ import { Card } from "../components/Card";
 import { Checkbox } from "../components/Checkbox";
 import { Eye, EyeOff, Moon, Sun } from "lucide-react";
 import { useTheme } from "../components/ThemeProvider";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 import { toast } from "react-toastify";
@@ -15,6 +15,7 @@ export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login, isLoading } = useAuth();
 
   // ⬇ Form state
@@ -22,6 +23,13 @@ export function Login() {
     email: "",
     password: "",
   });
+
+  // Check for verification success
+  useEffect(() => {
+    if (searchParams.get("verified") === "true") {
+      toast.success("Email verified successfully! You can now log in.");
+    }
+  }, [searchParams]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.id]: e.target.value });
@@ -36,7 +44,7 @@ export function Login() {
     } catch (err) {
       console.log("Login error:", err);
       toast.error(
-        err.response?.data?.message || "Login failed. Please try again."
+        err.response?.data?.message || "Login failed. Please try again.",
       );
     }
   };

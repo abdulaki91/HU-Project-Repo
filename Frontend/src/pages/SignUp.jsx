@@ -13,6 +13,7 @@ import {
 } from "../components/Select";
 import { Eye, EyeOff, Moon, Sun } from "lucide-react";
 import { useTheme } from "../components/ThemeProvider";
+import { useToast } from "../components/Toast";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api";
 import { departments } from "../constants/departments";
@@ -23,8 +24,6 @@ export function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -38,6 +37,7 @@ export function SignUp() {
   });
 
   const { theme, toggleTheme } = useTheme();
+  const toast = useToast();
   const navigate = useNavigate();
   const { isOpen, modalType, openTerms, openPrivacy, close } = useLegalModal();
 
@@ -47,8 +47,6 @@ export function SignUp() {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
-    // Clear errors when user starts typing
-    if (error) setError("");
   };
 
   const handleSelectChange = (name, value) => {
@@ -56,38 +54,64 @@ export function SignUp() {
       ...prev,
       [name]: value,
     }));
-    if (error) setError("");
   };
 
   const validateForm = () => {
-    if (!formData.firstName.trim()) return "First name is required";
-    if (!formData.lastName.trim()) return "Last name is required";
-    if (!formData.email.trim()) return "Email is required";
-    if (!formData.email.includes("@")) return "Please enter a valid email";
-    if (!formData.password) return "Password is required";
-    if (formData.password.length < 6)
-      return "Password must be at least 6 characters";
-    if (formData.password !== formData.confirmPassword)
-      return "Passwords do not match";
-    if (!formData.role) return "Please select your role";
-    if (!formData.batch) return "Please select your batch";
-    if (!formData.department) return "Please select your department";
-    if (!formData.terms) return "Please accept the terms and conditions";
-    return null;
+    if (!formData.firstName.trim()) {
+      toast.error("First name is required");
+      return false;
+    }
+    if (!formData.lastName.trim()) {
+      toast.error("Last name is required");
+      return false;
+    }
+    if (!formData.email.trim()) {
+      toast.error("Email is required");
+      return false;
+    }
+    if (!formData.email.includes("@")) {
+      toast.error("Please enter a valid email");
+      return false;
+    }
+    if (!formData.password) {
+      toast.error("Password is required");
+      return false;
+    }
+    if (formData.password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return false;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match");
+      return false;
+    }
+    if (!formData.role) {
+      toast.error("Please select your role");
+      return false;
+    }
+    if (!formData.batch) {
+      toast.error("Please select your batch");
+      return false;
+    }
+    if (!formData.department) {
+      toast.error("Please select your department");
+      return false;
+    }
+    if (!formData.terms) {
+      toast.error("Please accept the terms and conditions");
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+    if (!validateForm()) {
       return;
     }
 
     setLoading(true);
-    setError("");
-    setSuccess("");
 
     try {
       const response = await api.post("/user/register", {
@@ -100,9 +124,10 @@ export function SignUp() {
         department: formData.department,
       });
 
-      setSuccess(
+      toast.success(
         response.data.message ||
           "Registration successful! Please check your email to verify your account.",
+        { duration: 6000 },
       );
 
       // Clear form
@@ -138,7 +163,7 @@ export function SignUp() {
         errorMessage = err.response.data.message;
       }
 
-      setError(errorMessage);
+      toast.error(errorMessage, { duration: 7000 });
     } finally {
       setLoading(false);
     }
@@ -177,22 +202,6 @@ export function SignUp() {
         </div>
 
         <Card className="p-8 shadow-xl dark:bg-slate-800 dark:border-slate-700">
-          {/* Error Message */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
-            </div>
-          )}
-
-          {/* Success Message */}
-          {success && (
-            <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-              <p className="text-green-600 dark:text-green-400 text-sm">
-                {success}
-              </p>
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Names */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -322,8 +331,7 @@ export function SignUp() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Password must be at least 8 characters with uppercase,
-                lowercase, number, and special character (@$!%*?&)
+                Password must be at least 6 characters long
               </p>
             </div>
 
@@ -354,7 +362,7 @@ export function SignUp() {
             </div>
 
             {/* Terms */}
-            <div className="flex items-start space-x-3">
+            <div className="flex items-start space-x-3 p-4 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
               <Checkbox
                 id="terms"
                 name="terms"
@@ -364,7 +372,6 @@ export function SignUp() {
                     ...prev,
                     terms: checked,
                   }));
-                  if (error) setError("");
                 }}
                 required
                 className="mt-1 flex-shrink-0"
@@ -377,13 +384,12 @@ export function SignUp() {
                     ...prev,
                     terms: !prev.terms,
                   }));
-                  if (error) setError("");
                 }}
               >
                 I agree to the{" "}
                 <a
                   href="#"
-                  className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 underline"
+                  className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 underline font-medium"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -395,7 +401,7 @@ export function SignUp() {
                 and{" "}
                 <a
                   href="#"
-                  className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 underline"
+                  className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 underline font-medium"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();

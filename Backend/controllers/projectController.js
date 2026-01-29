@@ -734,22 +734,3 @@ export const exportProjects = asyncHandler(async (req, res) => {
     });
   }
 });
-// ✅ Get projects by multiple IDs (for bulk operations)
-export const getProjectsByIds = asyncHandler(async (req, res) => {
-  const { ids } = req.body;
-
-  if (!ids || !Array.isArray(ids) || ids.length === 0) {
-    return res.status(400).json({
-      success: false,
-      message: "Project IDs array is required",
-      code: "MISSING_PROJECT_IDS",
-    });
-  }
-
-  const projects = await Project.getProjectsByIds(ids);
-
-  res.json({
-    success: true,
-    data: projects,
-  });
-});

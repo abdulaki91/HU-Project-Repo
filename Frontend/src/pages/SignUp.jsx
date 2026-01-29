@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../api/api";
 import { departments } from "../constants/departments";
 import { batches } from "../constants/batches";
+import { LegalModal, useLegalModal } from "../components/LegalModal";
 
 export function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
@@ -38,6 +39,7 @@ export function SignUp() {
 
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const { isOpen, modalType, openTerms, openPrivacy, close } = useLegalModal();
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -121,8 +123,21 @@ export function SignUp() {
         navigate("/login");
       }, 3000);
     } catch (err) {
-      const errorMessage =
-        err.response?.data?.message || "Registration failed. Please try again.";
+      let errorMessage = "Registration failed. Please try again.";
+
+      if (
+        err.response?.data?.errors &&
+        Array.isArray(err.response.data.errors)
+      ) {
+        // Handle validation errors
+        const validationErrors = err.response.data.errors
+          .map((error) => error.message)
+          .join(", ");
+        errorMessage = `Validation failed: ${validationErrors}`;
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -306,6 +321,10 @@ export function SignUp() {
                   )}
                 </button>
               </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Password must be at least 8 characters with uppercase,
+                lowercase, number, and special character (@$!%*?&)
+              </p>
             </div>
 
             {/* Confirm Password */}
@@ -335,21 +354,54 @@ export function SignUp() {
             </div>
 
             {/* Terms */}
-            <div className="flex items-start space-x-2">
+            <div className="flex items-start space-x-3">
               <Checkbox
                 id="terms"
                 name="terms"
                 checked={formData.terms}
-                onChange={handleInputChange}
+                onCheckedChange={(checked) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    terms: checked,
+                  }));
+                  if (error) setError("");
+                }}
                 required
+                className="mt-1 flex-shrink-0"
               />
-              <label htmlFor="terms" className="text-sm">
+              <label
+                htmlFor="terms"
+                className="text-sm text-gray-700 dark:text-gray-300 leading-5 cursor-pointer select-none"
+                onClick={() => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    terms: !prev.terms,
+                  }));
+                  if (error) setError("");
+                }}
+              >
                 I agree to the{" "}
-                <a href="#" className="text-indigo-600">
+                <a
+                  href="#"
+                  className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 underline"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openTerms();
+                  }}
+                >
                   Terms of Service
                 </a>{" "}
                 and{" "}
-                <a href="#" className="text-indigo-600">
+                <a
+                  href="#"
+                  className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 underline"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openPrivacy();
+                  }}
+                >
                   Privacy Policy
                 </a>
                 .
@@ -374,6 +426,9 @@ export function SignUp() {
           </button>
         </p>
       </div>
+
+      {/* Legal Modal */}
+      <LegalModal isOpen={isOpen} onClose={close} type={modalType} />
     </div>
   );
 }

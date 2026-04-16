@@ -6,14 +6,15 @@ import { Card } from "../components/Card";
 import { Checkbox } from "../components/Checkbox";
 import { Eye, EyeOff, Moon, Sun } from "lucide-react";
 import { useTheme } from "../components/ThemeProvider";
+import { useToast } from "../components/Toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
-import { toast } from "react-toastify";
 
 export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const toast = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { login, isLoading } = useAuth();
@@ -27,9 +28,13 @@ export function Login() {
   // Check for verification success
   useEffect(() => {
     if (searchParams.get("verified") === "true") {
-      toast.success("Email verified successfully! You can now log in.");
+      toast.success("Your email has been verified successfully!", {
+        title: "Email Verified",
+        description: "You can now log in to your account.",
+        duration: 5000,
+      });
     }
-  }, [searchParams]);
+  }, [searchParams, toast]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.id]: e.target.value });
@@ -38,14 +43,42 @@ export function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Show loading toast
+    const loadingToastId = toast.loading("Signing you in...", {
+      title: "Authenticating",
+    });
+
     try {
-      const resp = await login(form);
-      navigate("/");
+      const result = await login(form);
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      // Show success toast with user info
+      toast.success("Welcome back! Redirecting to dashboard...", {
+        title: "Login Successful",
+        description: `Signed in as ${result.user?.firstName || "User"}`,
+        duration: 2000,
+      });
+
+      // Navigate to dashboard or home page
+      setTimeout(() => {
+        navigate("/");
+      }, 1500);
     } catch (err) {
       console.log("Login error:", err);
-      toast.error(
-        err.response?.data?.message || "Login failed. Please try again.",
-      );
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      // Show detailed error toast
+      const errorMessage =
+        err.response?.data?.message || "Login failed. Please try again.";
+      toast.error(errorMessage, {
+        title: "Login Failed",
+        description: "Please check your credentials and try again.",
+        duration: 6000,
+      });
     }
   };
 

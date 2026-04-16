@@ -4,7 +4,23 @@ dotenv.config();
 
 // Create reusable transporter
 const createTransporter = () => {
-  return nodemailer.createTransporter({
+  // In development, use a test account or disable email
+  if (process.env.NODE_ENV === "development") {
+    // Check if email credentials are properly configured
+    if (
+      !process.env.EMAIL_USERNAME ||
+      !process.env.EMAIL_PASSWORD ||
+      process.env.EMAIL_USERNAME === "your_email@domain.com"
+    ) {
+      console.log(
+        "📧 Email service disabled in development (no credentials configured)",
+      );
+      return null; // Return null to disable email in development
+    }
+  }
+
+  // Production or properly configured development setup
+  return nodemailer.createTransport({
     service: "Gmail",
     host: "smtp.gmail.com",
     port: 587,
@@ -12,6 +28,9 @@ const createTransporter = () => {
     auth: {
       user: process.env.EMAIL_USERNAME,
       pass: process.env.EMAIL_PASSWORD,
+    },
+    tls: {
+      rejectUnauthorized: false,
     },
   });
 };
@@ -167,6 +186,22 @@ export const sendEmail = async (options) => {
   try {
     const transporter = createTransporter();
 
+    // If transporter is null (development mode with no email config), simulate email sending
+    if (!transporter) {
+      console.log("📧 [DEVELOPMENT] Email would be sent to:", options.email);
+      console.log(
+        "📧 [DEVELOPMENT] Subject:",
+        options.subject || "Email notification",
+      );
+      console.log("📧 [DEVELOPMENT] Template:", options.template || "default");
+
+      // Simulate successful email sending in development
+      return {
+        messageId: "dev-" + Date.now(),
+        response: "Email simulated in development mode",
+      };
+    }
+
     let emailContent;
 
     // Use template if specified
@@ -222,6 +257,17 @@ export const sendEmail = async (options) => {
     return result;
   } catch (error) {
     console.error("❌ Error sending email:", error);
+
+    // In development, don't throw email errors to prevent registration failures
+    if (process.env.NODE_ENV === "development") {
+      console.log("📧 [DEVELOPMENT] Email error ignored in development mode");
+      return {
+        messageId: "dev-error-" + Date.now(),
+        response: "Email error ignored in development mode",
+        error: error.message,
+      };
+    }
+
     throw error;
   }
 };

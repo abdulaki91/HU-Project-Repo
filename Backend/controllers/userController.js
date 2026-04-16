@@ -61,7 +61,8 @@ export const updateUserController = asyncHandler(async (req, res) => {
   const { firstName, lastName, email, batch, department } = req.body;
 
   const userId = req.user.id;
-  console.log(userId, id);
+
+  // Convert both to numbers for comparison
   if (parseInt(id) !== parseInt(userId)) {
     return res.status(403).json({
       success: false,
@@ -81,6 +82,7 @@ export const updateUserController = asyncHandler(async (req, res) => {
 
   let verificationToken = null;
 
+  // If email is being changed, require verification
   if (email && email !== user.email) {
     verificationToken = crypto.randomBytes(32).toString("hex");
 
@@ -109,6 +111,7 @@ export const updateUserController = asyncHandler(async (req, res) => {
     });
   }
 
+  // Update profile without email change
   await UserModel.updateUser(userId, {
     firstName,
     lastName,
@@ -126,14 +129,26 @@ export const updateUserController = asyncHandler(async (req, res) => {
    Change user password
 ============================================= */
 export const changeUserPassword = asyncHandler(async (req, res) => {
-  const user = req.user;
   const { currentPassword, newPassword } = req.body;
+  const userId = req.user.id;
+
+  // Fetch user with password from database
+  const user = await UserModel.findUserByIdWithPassword(userId);
 
   if (!user) {
     return res.status(404).json({
       success: false,
       message: "User not found",
       code: "USER_NOT_FOUND",
+    });
+  }
+
+  // Verify current password
+  if (!user.password) {
+    return res.status(500).json({
+      success: false,
+      message: "User password not found in database",
+      code: "PASSWORD_NOT_FOUND",
     });
   }
 
@@ -146,6 +161,7 @@ export const changeUserPassword = asyncHandler(async (req, res) => {
     });
   }
 
+  // Update password
   await UserModel.changePassword(user.id, newPassword);
 
   res.status(200).json({

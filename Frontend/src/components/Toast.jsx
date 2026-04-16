@@ -1,5 +1,12 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from "lucide-react";
+import {
+  X,
+  CheckCircle,
+  AlertCircle,
+  AlertTriangle,
+  Info,
+  Loader2,
+} from "lucide-react";
 
 const ToastContext = createContext();
 
@@ -72,7 +79,7 @@ function ToastContainer({ toasts, onRemove }) {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm w-full">
+    <div className="fixed top-4 right-4 z-[9999] space-y-3 max-w-sm w-full pointer-events-none">
       {toasts.map((toast) => (
         <Toast key={toast.id} toast={toast} onRemove={onRemove} />
       ))}
@@ -86,7 +93,7 @@ function Toast({ toast, onRemove }) {
 
   useEffect(() => {
     // Trigger enter animation
-    const timer = setTimeout(() => setIsVisible(true), 10);
+    const timer = setTimeout(() => setIsVisible(true), 50);
     return () => clearTimeout(timer);
   }, []);
 
@@ -98,46 +105,81 @@ function Toast({ toast, onRemove }) {
   const getIcon = () => {
     switch (toast.type) {
       case "success":
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
+        return <CheckCircle className="w-5 h-5 text-emerald-500" />;
       case "error":
         return <AlertCircle className="w-5 h-5 text-red-500" />;
       case "warning":
-        return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
+        return <AlertTriangle className="w-5 h-5 text-amber-500" />;
       case "info":
         return <Info className="w-5 h-5 text-blue-500" />;
       case "loading":
-        return (
-          <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
-        );
+        return <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />;
       default:
         return null;
     }
   };
 
-  const getBackgroundColor = () => {
+  const getStyles = () => {
     switch (toast.type) {
       case "success":
-        return "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800";
+        return {
+          bg: "bg-white dark:bg-slate-800",
+          border:
+            "border-l-4 border-l-emerald-500 border-emerald-200 dark:border-emerald-800",
+          shadow: "shadow-lg shadow-emerald-500/10",
+          accent: "bg-emerald-500",
+        };
       case "error":
-        return "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800";
+        return {
+          bg: "bg-white dark:bg-slate-800",
+          border:
+            "border-l-4 border-l-red-500 border-red-200 dark:border-red-800",
+          shadow: "shadow-lg shadow-red-500/10",
+          accent: "bg-red-500",
+        };
       case "warning":
-        return "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800";
+        return {
+          bg: "bg-white dark:bg-slate-800",
+          border:
+            "border-l-4 border-l-amber-500 border-amber-200 dark:border-amber-800",
+          shadow: "shadow-lg shadow-amber-500/10",
+          accent: "bg-amber-500",
+        };
       case "info":
-        return "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800";
+        return {
+          bg: "bg-white dark:bg-slate-800",
+          border:
+            "border-l-4 border-l-blue-500 border-blue-200 dark:border-blue-800",
+          shadow: "shadow-lg shadow-blue-500/10",
+          accent: "bg-blue-500",
+        };
       case "loading":
-        return "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700";
+        return {
+          bg: "bg-white dark:bg-slate-800",
+          border:
+            "border-l-4 border-l-indigo-500 border-indigo-200 dark:border-indigo-800",
+          shadow: "shadow-lg shadow-indigo-500/10",
+          accent: "bg-indigo-500",
+        };
       default:
-        return "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700";
+        return {
+          bg: "bg-white dark:bg-slate-800",
+          border: "border-gray-200 dark:border-slate-700",
+          shadow: "shadow-lg",
+          accent: "bg-gray-500",
+        };
     }
   };
+
+  const styles = getStyles();
 
   if (toast.component) {
     return (
       <div
-        className={`transform transition-all duration-300 ease-in-out ${
+        className={`transform transition-all duration-500 ease-out pointer-events-auto ${
           isVisible && !isLeaving
-            ? "translate-x-0 opacity-100"
-            : "translate-x-full opacity-0"
+            ? "translate-x-0 opacity-100 scale-100"
+            : "translate-x-full opacity-0 scale-95"
         }`}
       >
         {toast.component}
@@ -147,32 +189,33 @@ function Toast({ toast, onRemove }) {
 
   return (
     <div
-      className={`transform transition-all duration-300 ease-in-out ${
+      className={`transform transition-all duration-500 ease-out pointer-events-auto ${
         isVisible && !isLeaving
-          ? "translate-x-0 opacity-100"
-          : "translate-x-full opacity-0"
+          ? "translate-x-0 opacity-100 scale-100"
+          : "translate-x-full opacity-0 scale-95"
       }`}
     >
       <div
         className={`
-          relative p-4 rounded-lg border shadow-lg backdrop-blur-sm
-          ${getBackgroundColor()}
+          relative p-4 rounded-xl backdrop-blur-sm
+          ${styles.bg} ${styles.border} ${styles.shadow}
+          hover:shadow-xl transition-shadow duration-200
         `}
       >
         <div className="flex items-start gap-3">
-          {getIcon()}
+          <div className="flex-shrink-0 mt-0.5">{getIcon()}</div>
 
           <div className="flex-1 min-w-0">
             {toast.title && (
-              <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
+              <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-1 text-sm">
                 {toast.title}
               </h4>
             )}
-            <p className="text-sm text-gray-700 dark:text-gray-300">
+            <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
               {toast.message}
             </p>
             {toast.description && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
                 {toast.description}
               </p>
             )}
@@ -180,17 +223,17 @@ function Toast({ toast, onRemove }) {
 
           <button
             onClick={handleRemove}
-            className="flex-shrink-0 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors duration-200 group"
           >
-            <X className="w-4 h-4 text-gray-400" />
+            <X className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300" />
           </button>
         </div>
 
         {/* Progress bar for timed toasts */}
         {toast.duration > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 dark:bg-gray-700 rounded-b-lg overflow-hidden">
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-100 dark:bg-slate-700 rounded-b-xl overflow-hidden">
             <div
-              className="h-full bg-current opacity-30 animate-progress"
+              className={`h-full ${styles.accent} animate-progress opacity-60`}
               style={{
                 animationDuration: `${toast.duration}ms`,
                 animationTimingFunction: "linear",
@@ -198,25 +241,65 @@ function Toast({ toast, onRemove }) {
             />
           </div>
         )}
+
+        {/* Subtle glow effect */}
+        <div
+          className={`absolute inset-0 rounded-xl ${styles.shadow} opacity-20 -z-10`}
+        />
       </div>
     </div>
   );
 }
 
-// CSS for progress animation (add to your global CSS)
-const progressKeyframes = `
+// Enhanced CSS for progress animation and effects
+const enhancedStyles = `
   @keyframes progress {
     from { width: 100%; }
     to { width: 0%; }
   }
+  
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%) scale(0.95);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0) scale(1);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slideOutRight {
+    from {
+      transform: translateX(0) scale(1);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(100%) scale(0.95);
+      opacity: 0;
+    }
+  }
+  
   .animate-progress {
     animation: progress linear forwards;
   }
+  
+  .animate-slide-in {
+    animation: slideInRight 0.5s ease-out forwards;
+  }
+  
+  .animate-slide-out {
+    animation: slideOutRight 0.3s ease-in forwards;
+  }
 `;
 
-// Inject styles
-if (typeof document !== "undefined") {
+// Inject enhanced styles only once
+if (
+  typeof document !== "undefined" &&
+  !document.querySelector("#enhanced-toast-styles")
+) {
   const style = document.createElement("style");
-  style.textContent = progressKeyframes;
+  style.id = "enhanced-toast-styles";
+  style.textContent = enhancedStyles;
   document.head.appendChild(style);
 }

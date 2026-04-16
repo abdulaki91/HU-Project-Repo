@@ -49,7 +49,7 @@ export default function ProjectViewModal({
   const canModify = isAdmin && currentUser.department === project.course;
 
   const [selectedStatus, setSelectedStatus] = useState(
-    project.status || "pending"
+    project.status || "pending",
   );
 
   useEffect(() => {
@@ -58,7 +58,11 @@ export default function ProjectViewModal({
 
   const changeStatus = async (status) => {
     try {
-      await api.put(`/project/status/${project.id}`, { status });
+      const endpoint =
+        status === "approved"
+          ? `/project/admin/approve/${project.id}`
+          : `/project/admin/reject/${project.id}`;
+      await api.put(endpoint, { status });
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       queryClient.invalidateQueries({ queryKey: ["my-projects"] });
       onClose(true);

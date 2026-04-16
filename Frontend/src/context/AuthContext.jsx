@@ -1,9 +1,7 @@
-import { createContext, useState, useEffect, useContext, use } from "react";
-// import toast from "react-hot-toast";
+import { createContext, useState, useEffect, useContext } from "react";
 import api from "../api/api"; // your axios instance
 import useFetchResource from "../hooks/useFetchResource";
 import { useMutation } from "@tanstack/react-query";
-import { toast } from "react-toastify";
 
 const AuthContext = createContext();
 
@@ -32,17 +30,15 @@ export function AuthProvider({ children }) {
       const { data } = await api.post("/user/login", credentials);
       return data;
     },
-    onError: (err) => {
-      toast.error(err.response?.data?.message || "Login failed");
-    },
   });
 
   const login = async (credentials) => {
     const result = await loginMutation.mutateAsync(credentials);
 
-    setToken(result.token);
-    localStorage.setItem("token", result.token);
-    toast.success("Login successful");
+    setToken(result.data.token);
+    localStorage.setItem("token", result.data.token);
+
+    return result;
   };
 
   const logout = () => {
@@ -56,7 +52,14 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, login, logout, isLoading, isError }}
+      value={{
+        user,
+        token,
+        login,
+        logout,
+        isLoading: loginMutation.isPending || isLoading,
+        isError,
+      }}
     >
       {children}
     </AuthContext.Provider>

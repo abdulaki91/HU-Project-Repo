@@ -1,44 +1,34 @@
 import { useState } from "react";
 import { Card } from "../components/Card";
-import { Button } from "../components/Button";
-import { Input } from "../components/Input";
-import { Badge } from "../components/Badge";
-import courses from "../constants/courses";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/Select";
-
-import { Search, Download, Grid3x3, List, Calendar, User } from "lucide-react";
+import { useToast } from "../components/Toast";
+import { Search, Filter, Sparkles } from "lucide-react";
 import EditProjectModal from "../components/EditProjectModal";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "../api/api";
 import ProjectCard from "../components/ProjectCard";
 import ProjectFilters from "../components/ProjectFilters";
-import { formatBytes } from "../utils/utils";
 import useFetchResource from "../hooks/useFetchResource";
 
 export function BrowseProjects() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState("grid"); // plain string
+  const [viewMode, setViewMode] = useState("grid");
   const [selectedCourse, setSelectedCourse] = useState("all");
   const [selectedBatch, setSelectedBatch] = useState("all");
+  const toast = useToast();
+
   // fetch projects from backend with filters using hook
   const params = new URLSearchParams();
   if (selectedCourse && selectedCourse !== "all")
     params.set("course", selectedCourse);
   if (selectedBatch && selectedBatch !== "all")
     params.set("batch", selectedBatch);
-  const resource = `project/get-all${
+  const resource = `project/browse-approved${
     params.toString() ? `?${params.toString()}` : ""
   }`;
   const queryKey = ["projects", selectedCourse, selectedBatch];
   const { data: projects = [], isLoading } = useFetchResource(
     resource,
-    queryKey
+    queryKey,
   );
 
   const queryClient = useQueryClient();
@@ -49,6 +39,8 @@ export function BrowseProjects() {
 
   const handleDownload = async (project) => {
     try {
+      toast.loading("Preparing download...");
+
       const resp = await api.get(`/project/download/${project.id}`, {
         responseType: "blob",
       });
@@ -70,10 +62,13 @@ export function BrowseProjects() {
       link.remove();
       window.URL.revokeObjectURL(url);
 
+      toast.success(`Downloaded ${project.title} successfully!`);
+
       // refresh projects to get updated download counts
       queryClient.invalidateQueries({ queryKey });
     } catch (err) {
       console.error("Download failed", err);
+      toast.error("Failed to download project. Please try again.");
     }
   };
 
@@ -93,165 +88,228 @@ export function BrowseProjects() {
       }
     }
     if (!Array.isArray(tags)) tags = [];
-    return { ...p, tags };
+
+    // Ensure all properties are strings, not objects
+    return {
+      ...p,
+      tags,
+      title:
+        typeof p.title === "object"
+          ? p.title.value || p.title.label || ""
+          : p.title || "",
+      description:
+        typeof p.description === "object"
+          ? p.description.value || p.description.label || ""
+          : p.description || "",
+      course:
+        typeof p.course === "object"
+          ? p.course.value || p.course.label || ""
+          : p.course || "",
+      batch:
+        typeof p.batch === "object"
+          ? p.batch.value || p.batch.label || ""
+          : p.batch || "",
+      department:
+        typeof p.department === "object"
+          ? p.department.value || p.department.label || ""
+          : p.department || "",
+      author_name:
+        typeof p.author_name === "object"
+          ? p.author_name.value || p.author_name.label || ""
+          : p.author_name || "",
+    };
   });
+
   const filteredProjects = normalizedProjects.filter((project) => {
     const q = searchQuery.toLowerCase();
-    const inTitle = project.title?.toLowerCase().includes(q);
-    const inDescription = project.description?.toLowerCase().includes(q);
+    const title = String(project.title || "").toLowerCase();
+    const description = String(project.description || "").toLowerCase();
+    const inTitle = title.includes(q);
+    const inDescription = description.includes(q);
     const inTags = (project.tags || []).some((tag) =>
-      String(tag).toLowerCase().includes(q)
+      String(tag).toLowerCase().includes(q),
     );
     return inTitle || inDescription || inTags;
   });
+
   const currentYear = new Date().getFullYear();
   const batches = Array.from({ length: 6 }, (_, i) => currentYear - i);
+
+  const handleApprove = async (project) => {
+    try {
+      await api.put(`/project/admin/approve/${project.id}`);
+      toast.success(`${project.title} has been approved!`);
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ["my-projects"] });
+    } catch (err) {
+      console.error("Approve failed", err);
+      toast.error("Failed to approve project. Please try again.");
+    }
+  };
+
+  const handleReject = async (project) => {
+    try {
+      await api.put(`/project/admin/reject/${project.id}`);
+      toast.warning(`${project.title} has been rejected.`);
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ["my-projects"] });
+    } catch (err) {
+      console.error("Reject failed", err);
+      toast.error("Failed to reject project. Please try again.");
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-slate-900 dark:text-white mb-2">Browse Projects</h1>
-        <p className="text-slate-600 dark:text-slate-400">
-          Discover and download projects from students across all courses and
-          batches
-        </p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/30 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 bg-dots-pattern opacity-20"></div>
+      <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-400/10 to-pink-400/10 rounded-full blur-3xl animate-pulse"></div>
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-br from-blue-400/10 to-cyan-400/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
 
-      {/* Search and Filter Bar */}
-      <Card className="p-6 dark:bg-slate-800 dark:border-slate-700">
-        <ProjectFilters
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          selectedCourse={selectedCourse}
-          setSelectedCourse={setSelectedCourse}
-          selectedBatch={selectedBatch}
-          setSelectedBatch={setSelectedBatch}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          batches={batches}
+      <div className="relative z-10 space-y-8 p-6">
+        {/* Header Section */}
+        <div className="text-center py-8">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500/10 to-indigo-500/10 rounded-full border border-purple-200/50 dark:border-purple-800/50 mb-4">
+            <Search className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
+              Discover Amazing Projects
+            </span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 dark:from-white dark:via-purple-200 dark:to-white bg-clip-text text-transparent mb-4">
+            Browse Projects
+          </h1>
+          <p className="text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
+            Discover and download innovative projects from students across all
+            courses and batches
+          </p>
+        </div>
+
+        {/* Search and Filter Bar */}
+        <Card className="p-6 glass-morphism border-0 backdrop-blur-xl shadow-xl">
+          <div className="flex items-center gap-2 mb-4">
+            <Filter className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            <h3 className="font-semibold text-slate-900 dark:text-white">
+              Filter & Search
+            </h3>
+          </div>
+          <ProjectFilters
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            selectedCourse={selectedCourse}
+            setSelectedCourse={setSelectedCourse}
+            selectedBatch={selectedBatch}
+            setSelectedBatch={setSelectedBatch}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            batches={batches}
+          />
+        </Card>
+
+        {/* Results Count */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            <p className="text-slate-600 dark:text-slate-400 font-medium">
+              Showing{" "}
+              <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                {filteredProjects.length}
+              </span>{" "}
+              of <span className="font-bold">{projects.length}</span> projects
+            </p>
+          </div>
+        </div>
+
+        {/* Projects Grid/List */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <Card
+                key={i}
+                className="p-6 glass-morphism border-0 backdrop-blur-xl animate-pulse"
+              >
+                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded mb-4"></div>
+                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded mb-2"></div>
+                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-2/3"></div>
+              </Card>
+            ))}
+          </div>
+        ) : filteredProjects.length === 0 ? (
+          <Card className="p-12 text-center glass-morphism border-0 backdrop-blur-xl">
+            <div className="w-16 h-16 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Search className="w-8 h-8 text-slate-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+              No projects found
+            </h3>
+            <p className="text-slate-600 dark:text-slate-400">
+              Try adjusting your search criteria or filters
+            </p>
+          </Card>
+        ) : viewMode === "grid" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredProjects.map((project, index) => (
+              <div
+                key={project.id}
+                className="animate-fade-in-up"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <ProjectCard
+                  project={project}
+                  currentUser={me}
+                  currentUserId={me?.id}
+                  variant="grid"
+                  onEdit={(p) => {
+                    setEditingProject(p);
+                    setEditOpen(true);
+                  }}
+                  onDownload={handleDownload}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredProjects.map((project, index) => (
+              <div
+                key={project.id}
+                className="animate-fade-in-up"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <ProjectCard
+                  project={project}
+                  currentUser={me}
+                  currentUserId={me?.id}
+                  variant="list"
+                  onEdit={(p) => {
+                    setEditingProject(p);
+                    setEditOpen(true);
+                  }}
+                  onDownload={handleDownload}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Edit modal */}
+        <EditProjectModal
+          project={editingProject}
+          open={editOpen}
+          invalidateKey={queryKey}
+          onClose={(success) => {
+            setEditOpen(false);
+            setEditingProject(null);
+            if (success) {
+              toast.success("Project updated successfully!");
+              queryClient.invalidateQueries({ queryKey: ["my-projects"] });
+            }
+          }}
         />
-      </Card>
-
-      {/* Results Count */}
-      <div className="flex items-center justify-between">
-        <p className="text-slate-600 dark:text-slate-400">
-          Showing {filteredProjects.length} of {projects.length} projects
-        </p>
-
-        <Select defaultValue="recent">
-          <SelectTrigger className="w-48 dark:bg-slate-800 dark:border-slate-700 dark:text-white">
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent className="dark:bg-slate-700 dark:border-slate-600">
-            <SelectItem value="recent" className="dark:text-white">
-              Most Recent
-            </SelectItem>
-            <SelectItem value="popular" className="dark:text-white">
-              Most Popular
-            </SelectItem>
-            <SelectItem value="downloads" className="dark:text-white">
-              Most Downloaded
-            </SelectItem>
-          </SelectContent>
-        </Select>
       </div>
-
-      {/* GRID VIEW */}
-      {isLoading ? (
-        <Card className="p-6">Loading...</Card>
-      ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredProjects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              currentUser={me}
-              currentUserId={me?.id}
-              variant="grid"
-              onEdit={(p) => {
-                setEditingProject(p);
-                setEditOpen(true);
-              }}
-              onDownload={handleDownload}
-              onApprove={async (p) => {
-                try {
-                  await api.put(`/project/status/${p.id}`, {
-                    status: "approved",
-                  });
-                  queryClient.invalidateQueries({ queryKey });
-                  queryClient.invalidateQueries({ queryKey: ["my-projects"] });
-                } catch (err) {
-                  console.error("Approve failed", err);
-                }
-              }}
-              onReject={async (p) => {
-                try {
-                  await api.put(`/project/status/${p.id}`, {
-                    status: "rejected",
-                  });
-                  queryClient.invalidateQueries({ queryKey });
-                  queryClient.invalidateQueries({ queryKey: ["my-projects"] });
-                } catch (err) {
-                  console.error("Reject failed", err);
-                }
-              }}
-            />
-          ))}
-        </div>
-      ) : (
-        /* LIST VIEW */
-        <div className="space-y-4">
-          {filteredProjects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              currentUser={me}
-              currentUserId={me?.id}
-              variant="list"
-              onEdit={(p) => {
-                setEditingProject(p);
-                setEditOpen(true);
-              }}
-              onDownload={handleDownload}
-              onApprove={async (p) => {
-                try {
-                  await api.put(`/project/status/${p.id}`, {
-                    status: "approved",
-                  });
-                  queryClient.invalidateQueries({ queryKey });
-                  queryClient.invalidateQueries({ queryKey: ["my-projects"] });
-                } catch (err) {
-                  console.error("Approve failed", err);
-                }
-              }}
-              onReject={async (p) => {
-                try {
-                  await api.put(`/project/status/${p.id}`, {
-                    status: "rejected",
-                  });
-                  queryClient.invalidateQueries({ queryKey });
-                  queryClient.invalidateQueries({ queryKey: ["my-projects"] });
-                } catch (err) {
-                  console.error("Reject failed", err);
-                }
-              }}
-            />
-          ))}
-        </div>
-      )}
-      {/* Edit modal */}
-      <EditProjectModal
-        project={editingProject}
-        open={editOpen}
-        invalidateKey={queryKey}
-        onClose={(success) => {
-          setEditOpen(false);
-          setEditingProject(null);
-          if (success) {
-            // ensure user's own project list also refreshes
-            queryClient.invalidateQueries({ queryKey: ["my-projects"] });
-          }
-        }}
-      />
     </div>
   );
 }

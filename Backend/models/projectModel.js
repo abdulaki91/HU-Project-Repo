@@ -241,7 +241,11 @@ export const getUserProjects = async (filters = {}, options = {}) => {
   return projects;
 };
 
-export const getProjectsByAuthor = async (authorId, filters = {}) => {
+export const getProjectsByAuthor = async (
+  authorId,
+  filters = {},
+  options = {},
+) => {
   let sql = "SELECT * FROM projects WHERE author_id = ?";
   const params = [authorId];
 
@@ -255,7 +259,23 @@ export const getProjectsByAuthor = async (authorId, filters = {}) => {
     params.push(filters.batch);
   }
 
-  sql += " ORDER BY created_at DESC";
+  if (filters.status && filters.status !== "all") {
+    sql += " AND status = ?";
+    params.push(filters.status);
+  }
+
+  // Get total count for pagination
+  const countSql = sql.replace("SELECT *", "SELECT COUNT(*) as total");
+  const [countRows] = await db.execute(countSql, params);
+  const total = countRows[0].total;
+
+  // Add pagination
+  const page = options.page || 1;
+  const limit = options.limit || 10;
+  const offset = (page - 1) * limit;
+
+  sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+  params.push(limit, offset);
 
   const [rows] = await db.execute(sql, params);
 
@@ -297,7 +317,13 @@ export const getProjectsByAuthor = async (authorId, filters = {}) => {
     }),
   );
 
-  return projects;
+  return {
+    projects,
+    page,
+    limit,
+    total,
+    totalPages: Math.ceil(total / limit),
+  };
 };
 
 export const incrementDownloads = (projectId) => {
@@ -324,34 +350,34 @@ export const getProjectsWithPagination = async (filters = {}, options = {}) => {
   const params = [];
 
   if (filters.course && filters.course !== "all") {
-    whereClause += " AND course = ?";
+    whereClause += " AND p.course = ?";
     params.push(filters.course);
   }
 
   if (filters.batch && filters.batch !== "all") {
-    whereClause += " AND batch = ?";
+    whereClause += " AND p.batch = ?";
     params.push(filters.batch);
   }
 
   if (filters.department && filters.department !== "all") {
-    whereClause += " AND department = ?";
+    whereClause += " AND p.department = ?";
     params.push(filters.department);
   }
 
   if (filters.status) {
-    whereClause += " AND status = ?";
+    whereClause += " AND p.status = ?";
     params.push(filters.status);
   }
 
   if (filters.search) {
     whereClause +=
-      " AND (MATCH(title, description, author_name) AGAINST(? IN NATURAL LANGUAGE MODE) OR title LIKE ? OR description LIKE ?)";
+      " AND (MATCH(p.title, p.description, p.author_name) AGAINST(? IN NATURAL LANGUAGE MODE) OR p.title LIKE ? OR p.description LIKE ?)";
     const searchTerm = `%${filters.search}%`;
     params.push(filters.search, searchTerm, searchTerm);
   }
 
   if (filters.featured) {
-    whereClause += " AND featured = TRUE";
+    whereClause += " AND p.featured = TRUE";
   }
 
   // Validate sort parameters
@@ -365,7 +391,7 @@ export const getProjectsWithPagination = async (filters = {}, options = {}) => {
   const sortField = allowedSortFields.includes(sortBy) ? sortBy : "created_at";
   const sortDirection = sortOrder.toLowerCase() === "asc" ? "ASC" : "DESC";
 
-  const countSql = `SELECT COUNT(*) as total FROM projects ${whereClause}`;
+  const countSql = `SELECT COUNT(*) as total FROM projects p ${whereClause}`;
   const dataSql = `
     SELECT p.*, u.firstName, u.lastName, u.email as author_email
     FROM projects p
@@ -864,4 +890,139 @@ export const convertToCSV = async (projects) => {
   });
 
   return csvRows.join("\n");
+};
+
+// ===== DASHBOARD STATISTICS =====
+
+// Get overall dashboard statistics
+export const getDashboardStats = async () => {
+  const sql = `
+    SELECT 
+      COUNT(*) as total_projects,
+      COUNT(DISTINCT author_id) as active_students,
+      SUM(downloads) as total_downloads,
+      SUM(views) as total_views,
+      COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_projects,
+      COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_projects,
+      COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_projects
+    FROM projects
+  `;
+
+  const [rows] = await db.execute(sql);
+  return rows[0];
+};
+
+// Get monthly upload trends (last 6 months)
+export const getUploadTrends = async () => {
+  const sql = `
+    SELECT 
+      DATE_FORMAT(created_at, '%b') as month,
+      COUNT(*) as uploads
+    FROM projects 
+    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+    GROUP BY YEAR(created_at), MONTH(created_at)
+    ORDER BY created_at ASC
+  `;
+
+  const [rows] = await db.execute(sql);
+  return rows;
+};
+
+// Get course distribution
+export const getCourseDistribution = async () => {
+  const sql = `
+    SELECT 
+      course as name,
+      COUNT(*) as value
+    FROM projects 
+    WHERE status = 'approved'
+    GROUP BY course
+    ORDER BY value DESC
+    LIMIT 10
+  `;
+
+  const [rows] = await db.execute(sql);
+
+  // Add colors for the pie chart
+  const colors = [
+    "#3b82f6",
+    "#8b5cf6",
+    "#10b981",
+    "#f59e0b",
+    "#ef4444",
+    "#6b7280",
+    "#ec4899",
+    "#14b8a6",
+    "#f97316",
+    "#84cc16",
+  ];
+
+  return rows.map((row, index) => ({
+    ...row,
+    color: colors[index % colors.length],
+  }));
+};
+
+// Get weekly activity data (last 7 days)
+export const getWeeklyActivity = async () => {
+  const sql = `
+    SELECT 
+      DAYNAME(created_at) as day,
+      SUM(views) as views,
+      SUM(downloads) as downloads
+    FROM projects 
+    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+    GROUP BY DAYOFWEEK(created_at), DAYNAME(created_at)
+    ORDER BY DAYOFWEEK(created_at)
+  `;
+
+  const [rows] = await db.execute(sql);
+
+  // Ensure all days are present
+  const daysOfWeek = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const dayMap = {};
+
+  rows.forEach((row) => {
+    dayMap[row.day] = {
+      day: row.day.substring(0, 3), // Shorten day names
+      views: parseInt(row.views) || 0,
+      downloads: parseInt(row.downloads) || 0,
+    };
+  });
+
+  return daysOfWeek.map(
+    (day) =>
+      dayMap[day] || {
+        day: day.substring(0, 3),
+        views: 0,
+        downloads: 0,
+      },
+  );
+};
+
+// Get department-specific dashboard stats (for admins)
+export const getDepartmentDashboardStats = async (department) => {
+  const sql = `
+    SELECT 
+      COUNT(*) as total_projects,
+      COUNT(DISTINCT author_id) as active_students,
+      SUM(downloads) as total_downloads,
+      SUM(views) as total_views,
+      COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_projects,
+      COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_projects,
+      COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_projects
+    FROM projects
+    WHERE department = ?
+  `;
+
+  const [rows] = await db.execute(sql, [department]);
+  return rows[0];
 };

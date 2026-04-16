@@ -101,7 +101,7 @@ export const uploadProjectFile = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 50 * 1024 * 1024, // 50MB default
+    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 3 * 1024 * 1024 * 1024, // 3GB default
     files: 1, // Only one file per upload
     fields: 20, // Limit form fields
     fieldNameSize: 100, // Limit field name size
@@ -179,7 +179,7 @@ export const handleUploadErrors = (err, req, res, next) => {
       case "LIMIT_FILE_SIZE":
         return res.status(400).json({
           success: false,
-          message: "File too large. Maximum size is 50MB.",
+          message: "File too large. Maximum size is 3GB.",
           code: "FILE_TOO_LARGE",
         });
       case "LIMIT_FILE_COUNT":

@@ -1,17 +1,23 @@
-
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-// import toast from "react-hot-toast";
 import api from "../api/api";
 
 const useDeleteResource = (resource, queryKey) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id) => await api.delete(`/${resource}/${id}`),
+    mutationFn: async (id) => {
+      const { data } = await api.delete(`/${resource}/${id}`);
+      return data;
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [queryKey] });
-      // toast.success(`${queryKey} deleted successfully!`);
+      const key = Array.isArray(queryKey) ? queryKey : [queryKey];
+      queryClient.invalidateQueries({ queryKey: key });
+    },
+    onError: (err) => {
+      console.error("Delete failed:", err);
+      throw err; // Re-throw to let the component handle the error
     },
   });
 };
+
 export default useDeleteResource;

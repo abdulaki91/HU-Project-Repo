@@ -12,6 +12,19 @@ import {
   SelectValue,
 } from "./Select";
 
+// Utility function to safely render values that might be objects
+const safeRender = (value) => {
+  if (typeof value === "object" && value !== null) {
+    // Handle author objects with firstName, lastName, email
+    if (value.firstName || value.lastName) {
+      return `${value.firstName || ""} ${value.lastName || ""}`.trim();
+    }
+    // Handle other objects with value/label structure
+    return value.label || value.value || JSON.stringify(value);
+  }
+  return value || "";
+};
+
 export default function ProjectCard({
   project,
   currentUser,
@@ -37,11 +50,11 @@ export default function ProjectCard({
       <div className="space-y-4">
         <div>
           <h3 className="text-slate-900 dark:text-white mb-2">
-            {project.title}
+            {safeRender(project.title)}
           </h3>
           {variant === "grid" && (
             <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
-              {project.description}
+              {safeRender(project.description)}
             </p>
           )}
         </div>
@@ -51,11 +64,11 @@ export default function ProjectCard({
             variant="outline"
             className="dark:border-slate-600 dark:text-slate-300"
           >
-            {project.course}
+            {safeRender(project.course)}
           </Badge>
           <p className="space-x-2">
             <span>•</span>
-            <span>Batch {project.batch}</span>
+            <span>Batch {safeRender(project.batch)}</span>
           </p>
           {project.status && (
             <span className="ml-2">
@@ -80,7 +93,7 @@ export default function ProjectCard({
               variant="secondary"
               className="dark:bg-slate-700 dark:text-slate-300"
             >
-              {tag}
+              {typeof tag === "object" ? tag.label || tag.value || tag : tag}
             </Badge>
           ))}
           <div className="text-slate-500 dark:text-slate-200 text-sm">
@@ -128,7 +141,7 @@ export default function ProjectCard({
 
         <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
           <User className="h-3 w-3" />
-          <span>{project.author}</span>
+          <span>{safeRender(project.author_name || project.author)}</span>
           <span>•</span>
           <Calendar className="h-3 w-3" />
           <span>

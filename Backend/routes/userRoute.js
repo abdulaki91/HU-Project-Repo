@@ -1,7 +1,7 @@
 import express from "express";
 import * as User from "../controllers/userController.js";
 import * as Auth from "../controllers/authController.js";
-import { authenticateUser, authRateLimit } from "../middlware/authenticate.js";
+import { authenticateUser, authRateLimit } from "../middleware/authenticate.js";
 import {
   validateRequest,
   userRegistrationSchema,

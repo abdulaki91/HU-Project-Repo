@@ -168,6 +168,21 @@ export const findUserById = async (id) => {
     throw new Error("Database error");
   }
 };
+
+// ✅ Get user by ID with password (for password change operations)
+export const findUserByIdWithPassword = async (id) => {
+  try {
+    const sql = `SELECT id, firstName, lastName, email, password, batch, department, role, verified, created_at 
+                 FROM users 
+                 WHERE id = ?`;
+    const [results] = await db.execute(sql, [id]);
+    if (!results[0]) return null; // User not found
+    return results[0];
+  } catch (err) {
+    console.error("Error fetching user by ID with password:", err);
+    throw new Error("Database error");
+  }
+};
 // ✅ Update last login timestamp
 export const updateLastLogin = (id) => {
   const sql = `UPDATE users SET lastLogin = NOW() WHERE id = ?`;

@@ -13,7 +13,7 @@ export default function EditProjectModal({
   invalidateKey = ["projects"],
 }) {
   const [form, setForm] = useState({});
-  const editMutation = useEditResource("project/update", invalidateKey);
+  const editMutation = useEditResource("project/edit", invalidateKey);
 
   useEffect(() => {
     if (project) {
@@ -26,8 +26,8 @@ export default function EditProjectModal({
           (project.tags && Array.isArray(project.tags)
             ? project.tags.join(", ")
             : typeof project.tags === "string"
-            ? project.tags
-            : "") || "",
+              ? project.tags
+              : "") || "",
       });
     } else {
       setForm({});

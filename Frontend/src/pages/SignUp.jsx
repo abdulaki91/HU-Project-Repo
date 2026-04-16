@@ -17,7 +17,7 @@ import { useToast } from "../components/Toast";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api";
 import { departments } from "../constants/departments";
-import { batches } from "../constants/batches";
+import { BATCHES } from "../constants/batches";
 import { LegalModal, useLegalModal } from "../components/LegalModal";
 
 export function SignUp() {
@@ -50,9 +50,12 @@ export function SignUp() {
   };
 
   const handleSelectChange = (name, value) => {
+    // Ensure we're always storing strings, not objects
+    const stringValue =
+      typeof value === "object" ? value.value || value.label || value : value;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: stringValue,
     }));
   };
 
@@ -154,11 +157,20 @@ export function SignUp() {
         err.response?.data?.errors &&
         Array.isArray(err.response.data.errors)
       ) {
-        // Handle validation errors
-        const validationErrors = err.response.data.errors
-          .map((error) => error.message)
-          .join(", ");
-        errorMessage = `Validation failed: ${validationErrors}`;
+        // Handle validation errors - show the first few specific errors
+        const validationErrors = err.response.data.errors;
+        if (validationErrors.length === 1) {
+          errorMessage = validationErrors[0].message;
+        } else if (validationErrors.length <= 3) {
+          errorMessage = validationErrors
+            .map((error) => error.message)
+            .join(". ");
+        } else {
+          errorMessage = `${validationErrors.length} validation errors found. Please check: ${validationErrors
+            .slice(0, 2)
+            .map((error) => error.field)
+            .join(", ")} and others.`;
+        }
       } else if (err.response?.data?.message) {
         errorMessage = err.response.data.message;
       }
@@ -273,9 +285,9 @@ export function SignUp() {
                     <SelectValue placeholder="Select batch" />
                   </SelectTrigger>
                   <SelectContent>
-                    {batches.map((batch) => (
-                      <SelectItem key={batch} value={batch}>
-                        {batch}
+                    {BATCHES.map((batch) => (
+                      <SelectItem key={batch.value} value={batch.value}>
+                        {batch.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

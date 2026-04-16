@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../api/api";
-import { toast } from "react-toastify";
 
 export default function useEditResource(resource, queryKey) {
   const queryClient = useQueryClient();
@@ -12,18 +11,12 @@ export default function useEditResource(resource, queryKey) {
       return response;
     },
     onSuccess: () => {
-      toast.success("Updated successfully!");
       const key = Array.isArray(queryKey) ? queryKey : [queryKey];
       queryClient.invalidateQueries({ queryKey: key });
     },
     onError: (err) => {
-      // Extract error message from backend response
-      const message =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        "Failed to update";
-      toast.error(message);
-      console.error(err);
+      console.error("Update failed:", err);
+      throw err; // Re-throw to let the component handle the error
     },
   });
 }

@@ -14,6 +14,10 @@ import projectRoute from "./routes/projectRoute.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { generalRateLimit, securityHeaders } from "./middleware/validation.js";
 
+// Import table creation functions
+import { createUsersTable } from "./models/userModel.js";
+import { createProjectsTable } from "./models/projectModel.js";
+
 const app = express();
 
 // Trust proxy for rate limiting behind reverse proxy
@@ -45,15 +49,21 @@ if (process.env.NODE_ENV === "production") {
 }
 
 // Body parsing middleware
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(express.json({ limit: "100mb" }));
+app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = process.env.ALLOWED_ORIGINS
       ? process.env.ALLOWED_ORIGINS.split(",")
-      : ["http://localhost:5173", "http://localhost:3000"];
+      : [
+          "http://localhost:5173",
+          "http://localhost:3000",
+          "http://localhost:5174",
+          "http://localhost:8080",
+          "https://localhost:8080",
+        ];
 
     // Allow requests with no origin (mobile apps, etc.)
     if (!origin) return callback(null, true);
@@ -86,6 +96,7 @@ app.get("/health", (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || "development",
+    version: process.env.npm_package_version || "1.0.0",
   });
 });
 
@@ -102,6 +113,22 @@ app.get("/ping", (req, res) => {
   });
 });
 
+// API documentation endpoint
+app.get("/api", (req, res) => {
+  res.json({
+    success: true,
+    message: "Haramaya University Project Store API",
+    version: "1.0.0",
+    endpoints: {
+      auth: "/api/user",
+      projects: "/api/project",
+      health: "/health",
+      ping: "/ping",
+    },
+    documentation: "https://github.com/your-repo/docs",
+  });
+});
+
 // 404 handler for undefined routes
 app.use(notFoundHandler);
 
@@ -109,30 +136,92 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Graceful shutdown
-process.on("SIGTERM", () => {
-  console.log("SIGTERM received. Shutting down gracefully...");
-  process.exit(0);
-});
+const gracefulShutdown = (signal) => {
+  console.log(`${signal} received. Shutting down gracefully...`);
 
-process.on("SIGINT", () => {
-  console.log("SIGINT received. Shutting down gracefully...");
-  process.exit(0);
-});
+  // Close server
+  if (server) {
+    server.close(() => {
+      console.log("HTTP server closed.");
+      process.exit(0);
+    });
+  } else {
+    process.exit(0);
+  }
+
+  // Force close after 10 seconds
+  setTimeout(() => {
+    console.error(
+      "Could not close connections in time, forcefully shutting down",
+    );
+    process.exit(1);
+  }, 10000);
+};
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
+// Database initialization function
+async function initializeDatabase() {
+  try {
+    console.log("🔄 Initializing database tables...");
+
+    // Create users table
+    await createUsersTable();
+    console.log("✅ Users table ready");
+
+    // Create projects table
+    await createProjectsTable();
+    console.log("✅ Projects table ready");
+
+    console.log("🎉 Database initialization completed successfully!");
+  } catch (error) {
+    console.error("❌ Database initialization failed:", error);
+    console.error(
+      "Server will continue but some features may not work properly",
+    );
+  }
+}
 
 // Start server
 const port = process.env.PORT || 5000;
-const server = app.listen(port, () => {
-  console.log(`🚀 Server running on PORT: ${port}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
-  console.log(`📊 Health check: http://localhost:${port}/health`);
-});
+let server;
 
-// Handle unhandled promise rejections
-process.on("unhandledRejection", (err) => {
-  console.error("Unhandled Promise Rejection:", err);
-  server.close(() => {
+async function startServer() {
+  try {
+    // Initialize database tables first
+    await initializeDatabase();
+
+    // Start the server
+    server = app.listen(port, () => {
+      console.log(`🚀 Server running on PORT: ${port}`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
+      console.log(`📊 Health check: http://localhost:${port}/health`);
+      console.log(`🔗 API Base URL: http://localhost:${port}/api`);
+    });
+
+    // Handle unhandled promise rejections
+    process.on("unhandledRejection", (err) => {
+      console.error("Unhandled Promise Rejection:", err);
+      server.close(() => {
+        process.exit(1);
+      });
+    });
+
+    // Handle uncaught exceptions
+    process.on("uncaughtException", (err) => {
+      console.error("Uncaught Exception:", err);
+      process.exit(1);
+    });
+
+    return server;
+  } catch (error) {
+    console.error("❌ Failed to start server:", error);
     process.exit(1);
-  });
-});
+  }
+}
+
+// Start the server
+startServer();
 
 export default app;

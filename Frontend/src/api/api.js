@@ -3,7 +3,7 @@ import axios from "axios";
 // Create axios instance with base configuration
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
-  timeout: 30000, // 30 seconds timeout
+  timeout: 300000, // 5 minutes timeout for large file uploads
   headers: {
     "Content-Type": "application/json",
   },
@@ -104,6 +104,7 @@ export const projectAPI = {
   create: (formData) =>
     api.post("/project/create", formData, {
       headers: { "Content-Type": "multipart/form-data" },
+      timeout: 600000, // 10 minutes for file uploads
     }),
   update: (id, data) => api.put(`/project/update/${id}`, data),
   delete: (id) => api.delete(`/project/delete/${id}`),
@@ -150,6 +151,7 @@ export const downloadFile = async (url, filename) => {
 export const uploadWithProgress = (url, formData, onProgress) => {
   return api.post(url, formData, {
     headers: { "Content-Type": "multipart/form-data" },
+    timeout: 600000, // 10 minutes for file uploads
     onUploadProgress: (progressEvent) => {
       if (onProgress && progressEvent.total) {
         const percentCompleted = Math.round(

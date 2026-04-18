@@ -17,7 +17,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { Profile } from "./pages/Profile";
 import { MyProjects } from "./pages/MyProjects";
 import { Settings } from "./pages/Settings";
-import { PageNotFound } from "./pages/PgaeNotFound";
+import { PageNotFound } from "./pages/PageNotFound";
 import { Unauthorized } from "./pages/Unauthorized";
 import { MobileResponsiveTest } from "./pages/MobileResponsiveTest";
 

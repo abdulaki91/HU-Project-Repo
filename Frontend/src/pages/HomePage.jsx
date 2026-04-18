@@ -8,11 +8,13 @@ import {
   Award,
   ArrowRight,
   Sparkles,
+  Star,
 } from "lucide-react";
 import { Badge } from "../components/Badge";
 import { useToast } from "../components/Toast";
 import { useNavigate } from "react-router-dom";
 import useFetchResource from "../hooks/useFetchResource";
+import ProjectCard from "../components/ProjectCard";
 
 export function HomePage() {
   const toast = useToast();
@@ -22,6 +24,17 @@ export function HomePage() {
   // Fetch real top technologies data
   const { data: topTechnologiesData, isLoading: techLoading } =
     useFetchResource("project/top-technologies?limit=5", "top-technologies");
+
+  // Fetch top-rated projects
+  const { data: topRatedProjects = [], isLoading: topRatedLoading } =
+    useFetchResource(
+      "rating/top-rated?limit=6&minRatings=2",
+      "top-rated-projects",
+    );
+
+  // Fetch recent approved projects
+  const { data: recentProjects = [], isLoading: recentLoading } =
+    useFetchResource("project/browse-approved?limit=3", "recent-projects");
 
   useEffect(() => {
     setIsLoaded(true);
@@ -62,38 +75,20 @@ export function HomePage() {
     },
   ];
 
-  const latestUploads = [
-    {
-      id: 1,
-      title: "AI-Powered Chatbot for Student Support",
-      course: "Artificial Intelligence",
-      batch: "2024",
-      tags: ["Python", "NLP", "TensorFlow"],
-      uploadedBy: "Sarah Johnson",
-      uploadedAt: "2 hours ago",
-      featured: true,
-    },
-    {
-      id: 2,
-      title: "E-Commerce Platform with Payment Integration",
-      course: "Web Development",
-      batch: "2024",
-      tags: ["React", "Node.js", "MongoDB"],
-      uploadedBy: "Michael Chen",
-      uploadedAt: "5 hours ago",
-      featured: false,
-    },
-    {
-      id: 3,
-      title: "Mobile Health Tracking Application",
-      course: "Mobile App Development",
-      batch: "2023",
-      tags: ["Flutter", "Firebase", "Dart"],
-      uploadedBy: "Emily Rodriguez",
-      uploadedAt: "1 day ago",
-      featured: false,
-    },
-  ];
+  const latestUploads = recentProjects.slice(0, 3).map((project) => ({
+    id: project.id,
+    title: project.title,
+    course: project.course,
+    batch: project.batch,
+    tags: Array.isArray(project.tags)
+      ? project.tags
+      : typeof project.tags === "string"
+        ? JSON.parse(project.tags || "[]").slice(0, 3)
+        : [],
+    uploadedBy: project.author_name,
+    uploadedAt: new Date(project.created_at).toLocaleDateString(),
+    featured: project.downloads > 50, // Mark as featured if popular
+  }));
 
   // Process real top technologies data
   const topTechnologies = (topTechnologiesData || []).map((tech, index) => {
@@ -219,47 +214,71 @@ export function HomePage() {
               </Button>
             </div>
             <div className="space-y-4">
-              {latestUploads.map((project, index) => (
-                <div
-                  key={project.id}
-                  className={`p-6 rounded-xl border transition-all duration-300 cursor-pointer hover:scale-[1.02] hover:shadow-lg ${
-                    project.featured
-                      ? "bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-indigo-200 dark:border-indigo-800"
-                      : "bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600"
-                  }`}
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex-1 leading-tight">
-                      {project.title}
-                    </h3>
-                    {project.featured && (
-                      <Badge className="bg-gradient-to-r from-amber-400 to-orange-400 text-white border-0 ml-2">
-                        <Sparkles className="w-3 h-3 mr-1" />
-                        Featured
-                      </Badge>
-                    )}
+              {recentLoading ? (
+                // Loading skeleton
+                [...Array(3)].map((_, index) => (
+                  <div
+                    key={index}
+                    className="animate-pulse p-6 rounded-xl border bg-slate-100 dark:bg-slate-800"
+                  >
+                    <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded mb-3"></div>
+                    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded mb-2"></div>
+                    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-2/3"></div>
                   </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 font-medium">
-                    {project.course} • Batch {project.batch}
+                ))
+              ) : latestUploads.length > 0 ? (
+                latestUploads.map((project, index) => (
+                  <div
+                    key={project.id}
+                    className={`p-6 rounded-xl border transition-all duration-300 cursor-pointer hover:scale-[1.02] hover:shadow-lg ${
+                      project.featured
+                        ? "bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-indigo-200 dark:border-indigo-800"
+                        : "bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600"
+                    }`}
+                    style={{ animationDelay: `${index * 100}ms` }}
+                    onClick={() => navigate("/browse")}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex-1 leading-tight">
+                        {project.title}
+                      </h3>
+                      {project.featured && (
+                        <Badge className="bg-gradient-to-r from-amber-400 to-orange-400 text-white border-0 ml-2">
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          Popular
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 font-medium">
+                      {project.course} • Batch {project.batch}
+                    </p>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {project.tags.map((tag, idx) => (
+                        <Badge
+                          key={idx}
+                          variant="secondary"
+                          className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
+                      <span className="font-medium">
+                        by {project.uploadedBy}
+                      </span>
+                      <span>{project.uploadedAt}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 text-slate-400 mx-auto mb-3" />
+                  <p className="text-slate-500 dark:text-slate-400">
+                    No recent projects available
                   </p>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {project.tags.map((tag, idx) => (
-                      <Badge
-                        key={idx}
-                        variant="secondary"
-                        className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                      >
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
-                    <span className="font-medium">by {project.uploadedBy}</span>
-                    <span>{project.uploadedAt}</span>
-                  </div>
                 </div>
-              ))}
+              )}
             </div>
           </Card>
 
@@ -316,6 +335,80 @@ export function HomePage() {
             </div>
           </Card>
         </div>
+
+        {/* Top Rated Projects Section */}
+        <Card className="p-8 glass-morphism border-0 backdrop-blur-xl">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg">
+                <Star className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                  Top Rated Projects
+                </h2>
+                <p className="text-slate-600 dark:text-slate-400">
+                  Discover the highest-rated projects from our community
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/browse")}
+              className="text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+            >
+              View All
+              <ArrowRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+
+          {topRatedLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-48 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
+                </div>
+              ))}
+            </div>
+          ) : topRatedProjects.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {topRatedProjects.map((project, index) => (
+                <div
+                  key={project.id}
+                  className="animate-fade-in-up"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <ProjectCard
+                    project={project}
+                    currentUser={null}
+                    currentUserId={null}
+                    variant="grid"
+                    onDownload={() => navigate("/browse")}
+                    onView={() => navigate("/browse")}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-gradient-to-br from-yellow-100 to-orange-100 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Star className="w-8 h-8 text-yellow-500" />
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+                No rated projects yet
+              </h3>
+              <p className="text-slate-600 dark:text-slate-400 mb-4">
+                Be the first to rate and review projects in our community!
+              </p>
+              <Button
+                onClick={() => navigate("/browse")}
+                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white"
+              >
+                Explore Projects
+              </Button>
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   );

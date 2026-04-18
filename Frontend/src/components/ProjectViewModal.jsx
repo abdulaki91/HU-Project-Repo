@@ -18,9 +18,10 @@ import {
   XCircle,
   Clock,
   AlertTriangle,
-  Sparkles,
   Tag,
-  Building,
+  Star,
+  MessageSquare,
+  Sparkles,
 } from "lucide-react";
 import { formatBytes } from "../utils/utils";
 import api from "../api/api";
@@ -215,205 +216,206 @@ export default function ProjectViewModal({
 
   return (
     <>
+      {/* Modal Backdrop */}
       <div
-        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
         onClick={(e) => {
-          // Close modal when clicking on backdrop
           if (e.target === e.currentTarget) {
             onClose(false);
           }
         }}
       >
-        <div className="w-full max-w-4xl max-h-[90vh] flex flex-col">
-          <Card className="bg-white/10 dark:bg-slate-900/10 backdrop-blur-xl border border-white/20 dark:border-slate-700/30 shadow-2xl flex flex-col max-h-full">
-            {/* Header */}
-            <div className="flex-shrink-0 p-6 pb-0 bg-white/5 dark:bg-slate-900/5 backdrop-blur-xl">
+        {/* Modal Container */}
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <div className="w-full max-w-4xl h-full max-h-[95vh] flex flex-col bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-xl border border-slate-700/50 dark:border-slate-600/50 rounded-2xl shadow-2xl overflow-hidden">
+            {/* Fixed Header */}
+            <div className="flex-shrink-0 relative">
+              {/* Close Button */}
               <button
                 onClick={() => onClose(false)}
-                className="absolute top-4 right-4 p-2 hover:bg-white/10 dark:hover:bg-slate-800/50 rounded-full transition-colors z-20"
+                className="absolute top-4 right-4 z-10 p-2 bg-slate-800/50 hover:bg-slate-700/70 dark:bg-slate-700/50 dark:hover:bg-slate-600/70 rounded-full transition-all duration-200 backdrop-blur-sm border border-slate-600/30"
               >
-                <X className="h-5 w-5 text-slate-700 dark:text-slate-300" />
+                <X className="h-5 w-5 text-slate-200 dark:text-slate-300" />
               </button>
 
-              <div className="pr-12">
-                <div className="flex items-start gap-4 mb-4">
+              {/* Header Content */}
+              <div className="bg-gradient-to-br from-indigo-500/20 via-purple-500/10 to-pink-500/15 dark:from-indigo-900/30 dark:via-purple-900/20 dark:to-pink-900/25 p-6 border-b border-slate-600/30 dark:border-slate-600/50 backdrop-blur-sm">
+                <div className="flex items-start gap-4 pr-12">
                   <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg">
                     <FileText className="h-6 w-6 text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 leading-tight drop-shadow-sm">
+                    <h1 className="text-2xl font-bold text-slate-100 dark:text-white mb-2 leading-tight">
                       {project.title}
-                    </h2>
-                    <div className="flex items-center gap-4 text-sm text-slate-700 dark:text-slate-300">
+                    </h1>
+                    <div className="flex items-center gap-4 text-sm text-slate-300 dark:text-slate-400 mb-3">
                       <div className="flex items-center gap-1">
                         <User className="h-4 w-4" />
-                        {project.author_name || project.author}
+                        <span>{project.author_name || project.author}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
-                        {project.created_at
-                          ? new Date(project.created_at).toLocaleDateString(
-                              "en-US",
-                              {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                              },
-                            )
-                          : "Unknown date"}
+                        <span>
+                          {project.created_at
+                            ? new Date(project.created_at).toLocaleDateString()
+                            : "Unknown date"}
+                        </span>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* Status and Quick Info */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <Badge
-                      className={`flex items-center gap-1 ${getStatusColor(project.status)}`}
-                    >
-                      {getStatusIcon(project.status)}
-                      {project.status?.charAt(0).toUpperCase() +
-                        project.status?.slice(1)}
-                    </Badge>
-                    {isAdmin && !canModify && (
+                    {/* Status and Stats */}
+                    <div className="flex items-center gap-4">
                       <Badge
-                        variant="outline"
-                        className="text-amber-600 border-amber-300"
+                        className={`flex items-center gap-1 ${getStatusColor(project.status)}`}
                       >
-                        <AlertTriangle className="h-3 w-3 mr-1" />
-                        Different Department
+                        {getStatusIcon(project.status)}
+                        {project.status?.charAt(0).toUpperCase() +
+                          project.status?.slice(1)}
                       </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-slate-700 dark:text-slate-300">
-                    <div className="flex items-center gap-1">
-                      <Eye className="h-4 w-4" />
-                      {project.views || 0} views
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <DownloadIcon className="h-4 w-4" />
-                      {project.downloads || 0} downloads
+                      <div className="flex items-center gap-4 text-sm text-slate-400 dark:text-slate-400">
+                        <span className="flex items-center gap-1">
+                          <Eye className="h-4 w-4" />
+                          {project.views || 0}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <DownloadIcon className="h-4 w-4" />
+                          {project.downloads || 0}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto px-6 pb-6">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main Content */}
-                <div className="lg:col-span-2 space-y-6">
-                  {/* Description */}
-                  <div>
-                    <Label className="text-base font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                      Project Description
-                    </Label>
-                    <div className="bg-white/10 dark:bg-slate-800/30 rounded-xl p-4 border border-white/20 dark:border-slate-700/50 backdrop-blur-sm">
-                      <p className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
-                        {project.description || "No description provided."}
-                      </p>
-                    </div>
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-6 space-y-8">
+                {/* Project Description */}
+                <section>
+                  <h2 className="text-lg font-semibold text-slate-100 dark:text-white mb-4 flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-indigo-400 dark:text-indigo-400" />
+                    Description
+                  </h2>
+                  <div className="bg-slate-800/50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-600/30 dark:border-slate-700 backdrop-blur-sm">
+                    <p className="text-slate-200 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                      {project.description || "No description provided."}
+                    </p>
                   </div>
+                </section>
 
-                  {/* Tags */}
-                  {projectTags.length > 0 && (
-                    <div>
-                      <Label className="text-base font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                        <Tag className="h-4 w-4" />
-                        Technologies Used
-                      </Label>
-                      <div className="flex flex-wrap gap-2">
-                        {projectTags.map((tag, index) => (
-                          <Badge
-                            key={index}
-                            variant="outline"
-                            className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-300/50 dark:border-blue-800 text-blue-700 dark:text-blue-300 backdrop-blur-sm"
-                          >
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Rejection Reason (if rejected) */}
-                  {project.status === "rejected" && project.rejectionReason && (
-                    <div>
-                      <Label className="text-base font-semibold text-red-700 dark:text-red-400 mb-3 flex items-center gap-2">
-                        <XCircle className="h-4 w-4" />
-                        Rejection Reason
-                      </Label>
-                      <div className="bg-red-500/10 dark:bg-red-900/20 rounded-xl p-4 border border-red-300/50 dark:border-red-800/50 backdrop-blur-sm">
-                        <p className="text-red-700 dark:text-red-300">
-                          {project.rejectionReason}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Sidebar */}
-                <div className="space-y-6">
-                  {/* Project Details */}
-                  <div className="bg-white/10 dark:bg-slate-800/30 rounded-xl p-4 border border-white/20 dark:border-slate-700/50 backdrop-blur-sm">
-                    <h3 className="font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                      <BookOpen className="h-4 w-4" />
-                      Project Details
-                    </h3>
-                    <div className="space-y-3 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-slate-600 dark:text-slate-400">
-                          Course:
-                        </span>
-                        <span className="font-medium text-slate-900 dark:text-white">
-                          {project.course}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-600 dark:text-slate-400">
-                          Department:
-                        </span>
-                        <span className="font-medium text-slate-900 dark:text-white">
-                          {project.department}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-600 dark:text-slate-400">
-                          Batch:
-                        </span>
-                        <span className="font-medium text-slate-900 dark:text-white">
-                          {project.batch}
-                        </span>
-                      </div>
-                      {project.file_size && (
-                        <div className="flex justify-between">
-                          <span className="text-slate-600 dark:text-slate-400">
-                            File Size:
+                {/* Project Details Grid */}
+                <section>
+                  <h2 className="text-lg font-semibold text-slate-100 dark:text-white mb-4">
+                    Project Details
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-slate-800/50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-600/30 dark:border-slate-700">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-300 dark:text-slate-400 text-sm">
+                            Course
                           </span>
-                          <span className="font-medium text-slate-900 dark:text-white">
-                            {formatBytes(project.file_size)}
+                          <span className="font-medium text-slate-100 dark:text-white">
+                            {project.course}
                           </span>
                         </div>
-                      )}
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-300 dark:text-slate-400 text-sm">
+                            Department
+                          </span>
+                          <span className="font-medium text-slate-100 dark:text-white">
+                            {project.department}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-300 dark:text-slate-400 text-sm">
+                            Batch
+                          </span>
+                          <span className="font-medium text-slate-100 dark:text-white">
+                            {project.batch}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Admin Actions */}
-                  {isAdmin && canModify && project.status === "pending" && (
-                    <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 border border-indigo-300/50 dark:border-indigo-800 backdrop-blur-sm">
-                      <h3 className="font-semibold text-indigo-900 dark:text-indigo-200 mb-4 flex items-center gap-2">
-                        <Sparkles className="h-4 w-4" />
-                        Admin Actions
-                      </h3>
-
-                      {!showRejectionForm ? (
+                    {project.file_size && (
+                      <div className="bg-slate-800/50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-600/30 dark:border-slate-700">
                         <div className="space-y-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-300 dark:text-slate-400 text-sm">
+                              File Size
+                            </span>
+                            <span className="font-medium text-slate-100 dark:text-white">
+                              {formatBytes(project.file_size)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-300 dark:text-slate-400 text-sm">
+                              File Name
+                            </span>
+                            <span className="font-medium text-slate-100 dark:text-white text-sm truncate">
+                              {project.file_path
+                                ? project.file_path.split(/[\\/]/).pop()
+                                : "N/A"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                {/* Technologies Used */}
+                {projectTags.length > 0 && (
+                  <section>
+                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                      <Tag className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                      Technologies Used
+                    </h2>
+                    <div className="flex flex-wrap gap-2">
+                      {projectTags.map((tag, index) => (
+                        <Badge
+                          key={index}
+                          variant="secondary"
+                          className="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* Rejection Reason */}
+                {project.status === "rejected" && project.rejectionReason && (
+                  <section>
+                    <h2 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-4 flex items-center gap-2">
+                      <XCircle className="h-5 w-5" />
+                      Rejection Reason
+                    </h2>
+                    <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4 border border-red-200 dark:border-red-800">
+                      <p className="text-red-700 dark:text-red-300">
+                        {project.rejectionReason}
+                      </p>
+                    </div>
+                  </section>
+                )}
+
+                {/* Admin Actions */}
+                {isAdmin && canModify && project.status === "pending" && (
+                  <section>
+                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                      Admin Actions
+                    </h2>
+                    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-6 border border-indigo-200 dark:border-indigo-800">
+                      {!showRejectionForm ? (
+                        <div className="flex gap-3">
                           <Button
                             onClick={handleApprove}
                             disabled={isLoading}
-                            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg"
+                            className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
                           >
                             <CheckCircle className="h-4 w-4 mr-2" />
                             {isLoading ? "Approving..." : "Approve Project"}
@@ -421,7 +423,7 @@ export default function ProjectViewModal({
                           <Button
                             onClick={() => setShowRejectionForm(true)}
                             variant="outline"
-                            className="w-full border-red-300 text-red-700 hover:bg-red-500/10 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
+                            className="flex-1 border-red-300 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
                           >
                             <XCircle className="h-4 w-4 mr-2" />
                             Reject Project
@@ -439,14 +441,13 @@ export default function ProjectViewModal({
                                 setRejectionReason(e.target.value)
                               }
                               placeholder="Please provide a reason for rejection..."
-                              className="min-h-20 text-sm"
+                              className="min-h-20"
                             />
                           </div>
                           <div className="flex gap-2">
                             <Button
                               onClick={handleReject}
                               disabled={isLoading}
-                              size="sm"
                               className="flex-1 bg-red-600 hover:bg-red-700 text-white"
                             >
                               {isLoading ? "Rejecting..." : "Confirm Reject"}
@@ -457,7 +458,6 @@ export default function ProjectViewModal({
                                 setRejectionReason("");
                               }}
                               variant="outline"
-                              size="sm"
                               className="flex-1"
                             >
                               Cancel
@@ -466,80 +466,68 @@ export default function ProjectViewModal({
                         </div>
                       )}
                     </div>
-                  )}
+                  </section>
+                )}
 
-                  {/* Download Section */}
-                  {project.file_path && (
-                    <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl p-4 border border-blue-300/50 dark:border-blue-800 backdrop-blur-sm">
-                      <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-3 flex items-center gap-2">
-                        <Download className="h-4 w-4" />
-                        Project Files
-                      </h3>
-
-                      {/* File Information */}
-                      <div className="mb-3 p-3 bg-white/10 dark:bg-slate-800/20 rounded-lg">
-                        <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                          <FileText className="h-4 w-4" />
-                          <span className="font-medium">
-                            {project.file_path
-                              ? project.file_path.split(/[\\/]/).pop()
-                              : "Project File"}
-                          </span>
-                        </div>
+                {/* Download Section */}
+                {project.file_path && (
+                  <section>
+                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                      <Download className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                      Project Files
+                    </h2>
+                    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center gap-3 mb-4">
+                        <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        <span className="font-medium text-blue-900 dark:text-blue-200">
+                          {project.file_path
+                            ? project.file_path.split(/[\\/]/).pop()
+                            : "Project File"}
+                        </span>
                       </div>
 
-                      <Button
-                        onClick={handleDownload}
-                        disabled={isLoading}
-                        className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg"
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        {isLoading
-                          ? "Downloading..."
-                          : canModify && project.status === "pending"
-                            ? "Download & Review"
-                            : "Download Project"}
-                      </Button>
-
-                      {/* Preview Button for Admins */}
-                      {canModify && project.status === "pending" && (
+                      <div className="flex gap-3">
                         <Button
-                          onClick={() => setShowPreview(true)}
-                          variant="outline"
-                          className="w-full mt-2 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                          onClick={handleDownload}
+                          disabled={isLoading}
+                          className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white"
                         >
-                          <Eye className="h-4 w-4 mr-2" />
-                          Quick Preview
+                          <Download className="h-4 w-4 mr-2" />
+                          {isLoading ? "Downloading..." : "Download Project"}
                         </Button>
-                      )}
 
-                      {/* Additional info for admins */}
-                      {canModify && project.status === "pending" && (
-                        <div className="mt-3 p-2 bg-amber-50/50 dark:bg-amber-900/20 rounded-lg border border-amber-200/50 dark:border-amber-800/50">
-                          <p className="text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1">
-                            <Eye className="h-3 w-3" />
-                            <strong>Admin Review:</strong> Download the project
-                            files to verify content before approval
-                          </p>
-                        </div>
-                      )}
+                        {canModify && project.status === "pending" && (
+                          <Button
+                            onClick={() => setShowPreview(true)}
+                            variant="outline"
+                            className="border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Preview
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  )}
+                  </section>
+                )}
 
-                  {/* Project Rating Section - Only for approved projects */}
-                  {project.status === "approved" && (
-                    <div>
-                      <ProjectRating project={project} />
-                    </div>
-                  )}
-                </div>
+                {/* Rating Section - Only for approved projects */}
+                {project.status === "approved" && (
+                  <section>
+                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                      <Star className="h-5 w-5 text-yellow-500" />
+                      Ratings & Reviews
+                    </h2>
+                    <ProjectRating project={project} />
+                  </section>
+                )}
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="flex-shrink-0 px-6 py-4 bg-white/5 dark:bg-slate-800/30 border-t border-white/20 dark:border-slate-700/50 rounded-b-lg backdrop-blur-sm">
+            {/* Fixed Footer */}
+            <div className="flex-shrink-0 bg-slate-800/50 dark:bg-slate-800/50 border-t border-slate-600/30 dark:border-slate-700 p-4">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-slate-700 dark:text-slate-300">
+                <div className="text-sm text-slate-600 dark:text-slate-400">
                   {isAdmin && canModify
                     ? "You have permission to manage this project"
                     : isAdmin && !canModify
@@ -555,7 +543,7 @@ export default function ProjectViewModal({
                 </Button>
               </div>
             </div>
-          </Card>
+          </div>
         </div>
       </div>
 

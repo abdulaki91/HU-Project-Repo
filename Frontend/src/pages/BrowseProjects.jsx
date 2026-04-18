@@ -3,6 +3,7 @@ import { Card } from "../components/Card";
 import { useToast } from "../components/Toast";
 import { Search, Filter, Sparkles } from "lucide-react";
 import EditProjectModal from "../components/EditProjectModal";
+import ProjectViewModal from "../components/ProjectViewModal";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "../api/api";
 import ProjectCard from "../components/ProjectCard";
@@ -37,6 +38,8 @@ export function BrowseProjects() {
 
   const [editingProject, setEditingProject] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [viewingProject, setViewingProject] = useState(null);
+  const [viewOpen, setViewOpen] = useState(false);
 
   const handleDownload = async (project) => {
     try {
@@ -71,6 +74,11 @@ export function BrowseProjects() {
       console.error("Download failed", err);
       toast.error("Failed to download project. Please try again.");
     }
+  };
+
+  const handleViewProject = (project) => {
+    setViewingProject(project);
+    setViewOpen(true);
   };
 
   // Normalize tags: backend may return tags as a JSON string or array
@@ -265,6 +273,7 @@ export function BrowseProjects() {
                     setEditOpen(true);
                   }}
                   onDownload={handleDownload}
+                  onView={handleViewProject}
                   onApprove={handleApprove}
                   onReject={handleReject}
                 />
@@ -289,6 +298,7 @@ export function BrowseProjects() {
                     setEditOpen(true);
                   }}
                   onDownload={handleDownload}
+                  onView={handleViewProject}
                   onApprove={handleApprove}
                   onReject={handleReject}
                 />
@@ -309,6 +319,16 @@ export function BrowseProjects() {
               toast.success("Project updated successfully!");
               queryClient.invalidateQueries({ queryKey: ["my-projects"] });
             }
+          }}
+        />
+
+        {/* View modal */}
+        <ProjectViewModal
+          project={viewingProject}
+          open={viewOpen}
+          onClose={() => {
+            setViewOpen(false);
+            setViewingProject(null);
           }}
         />
       </div>

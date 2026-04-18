@@ -16,7 +16,7 @@ const ratingSchema = Joi.object({
     "number.max": "Rating cannot be more than 5",
     "any.required": "Rating is required",
   }),
-  review: Joi.string().trim().max(1000).optional().allow("").messages({
+  review: Joi.string().trim().max(1000).optional().allow("", null).messages({
     "string.max": "Review cannot exceed 1000 characters",
   }),
 });

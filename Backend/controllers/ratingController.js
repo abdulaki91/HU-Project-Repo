@@ -47,7 +47,8 @@ export const addRating = asyncHandler(async (req, res) => {
   }
 
   // Add or update the rating
-  await Rating.addOrUpdateRating(projectId, userId, rating, review);
+  const reviewValue = review && review.trim() ? review.trim() : null;
+  await Rating.addOrUpdateRating(projectId, userId, rating, reviewValue);
 
   // Get updated rating statistics
   const stats = await Rating.getProjectRatingStats(projectId);

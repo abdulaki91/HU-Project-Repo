@@ -45,7 +45,7 @@ export default function ProjectRating({ project }) {
     mutationFn: async ({ rating, review }) => {
       const { data } = await api.post(`/rating/project/${project.id}`, {
         rating,
-        review: review.trim() || null,
+        review: review && review.trim() ? review.trim() : "",
       });
       return data;
     },
@@ -121,21 +121,58 @@ export default function ProjectRating({ project }) {
       return;
     }
 
+    // Safely handle review validation
+    const reviewText = userReview || "";
+    const trimmedReview = reviewText.trim();
+
+    // Validate review if provided (optional but with constraints)
+    if (trimmedReview && trimmedReview.length < 10) {
+      toast.error("Review is too short", {
+        title: "Review Validation",
+        description:
+          "If you provide a review, it must be at least 10 characters long.",
+      });
+      return;
+    }
+
+    if (trimmedReview && trimmedReview.length > 1000) {
+      toast.error("Review is too long", {
+        title: "Review Validation",
+        description: "Review cannot exceed 1000 characters.",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await submitRatingMutation.mutateAsync({
         rating: userRating,
-        review: userReview,
+        review: trimmedReview || "", // Send empty string if empty
       });
+    } catch (error) {
+      // Error is already handled by the mutation's onError
+      console.error("Failed to submit rating:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleRemoveRating = async () => {
+    // Check if user actually has a rating to remove
+    if (!existingRating) {
+      toast.error("No rating to remove", {
+        title: "No Rating Found",
+        description: "You haven't rated this project yet.",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await deleteRatingMutation.mutateAsync();
+    } catch (error) {
+      // Error is already handled by the mutation's onError
+      console.error("Failed to remove rating:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -276,12 +313,34 @@ export default function ProjectRating({ project }) {
                     id="review"
                     value={userReview}
                     onChange={(e) => setUserReview(e.target.value)}
-                    placeholder="Share your thoughts about this project..."
+                    placeholder="Share your thoughts about this project... (minimum 10 characters if provided)"
                     className="mt-1"
                     maxLength={1000}
                   />
-                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    {userReview.length}/1000 characters
+                  <div className="flex justify-between items-center text-xs mt-1">
+                    <div className="text-slate-500 dark:text-slate-400">
+                      {userReview &&
+                        userReview.trim().length > 0 &&
+                        userReview.trim().length < 10 && (
+                          <span className="text-amber-600 dark:text-amber-400">
+                            Minimum 10 characters required
+                          </span>
+                        )}
+                      {userReview && userReview.trim().length >= 10 && (
+                        <span className="text-green-600 dark:text-green-400">
+                          ✓ Review looks good
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      className={`${
+                        userReview.length > 900
+                          ? "text-amber-600 dark:text-amber-400"
+                          : "text-slate-500 dark:text-slate-400"
+                      }`}
+                    >
+                      {userReview.length}/1000 characters
+                    </div>
                   </div>
                 </div>
 

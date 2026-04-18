@@ -1,8 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "../api/api";
 
-const useFetchResource = (resource, queryKey, enabled = true) => {
+const useFetchResource = (resource, queryKey, options = {}) => {
   const resolvedKey = Array.isArray(queryKey) ? queryKey : [queryKey];
+
+  // Handle both boolean enabled and options object
+  const enabled =
+    typeof options === "boolean"
+      ? options
+      : options.enabled !== undefined
+        ? options.enabled
+        : true;
 
   return useQuery({
     queryKey: resolvedKey,

@@ -17,6 +17,9 @@ const router = express.Router();
 
 // ===== PUBLIC ROUTES (No authentication required) =====
 
+// Get global top technologies (for homepage)
+router.get("/top-technologies", Project.getGlobalTopTechnologies);
+
 // Browse all approved projects (students can see approved projects from all departments)
 router.get("/browse-approved", Project.getApprovedProjects);
 router.get("/get-all", Project.getApprovedProjects); // Alias for frontend compatibility
@@ -24,11 +27,17 @@ router.get("/get-all", Project.getApprovedProjects); // Alias for frontend compa
 // View single project details
 router.get("/view/:id", Project.getProjectById);
 
-// Download project file
-router.get("/download/:id", Project.downloadProject);
-
 // ===== PROTECTED ROUTES (Authentication required) =====
 router.use(authenticateUser);
+
+// Download project file (moved to protected section for proper admin access)
+router.get("/download/:id", Project.downloadProject);
+
+// Preview project file (for admin review without downloading)
+router.get("/preview/:id", Project.previewProject);
+
+// Serve file for browser preview (PDF, text files, etc.)
+router.get("/preview-file/:id", Project.previewFile);
 
 // ===== STUDENT ROUTES =====
 
@@ -49,6 +58,8 @@ router.post(
 // Students: Edit their own project (only if pending or rejected)
 router.put(
   "/edit/:id",
+  uploadProjectFile.single("file"),
+  parseFormDataFields,
   validateRequest(projectUpdateSchema),
   Project.editMyProject,
 );
@@ -91,5 +102,8 @@ router.put(
 
 // Dashboard statistics (authenticated users only)
 router.get("/dashboard/stats", Project.getDashboardStats);
+
+// User profile statistics (authenticated users only)
+router.get("/user/stats", Project.getUserStats);
 
 export default router;

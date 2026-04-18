@@ -17,6 +17,18 @@ export const createProjectTable = asyncHandler(async (req, res) => {
 
 // ===== PUBLIC ENDPOINTS =====
 
+// ✅ Get global top technologies (for homepage)
+export const getGlobalTopTechnologies = asyncHandler(async (req, res) => {
+  const { limit = 10 } = req.query;
+
+  const topTechnologies = await Project.getTopTechnologies(parseInt(limit));
+
+  res.json({
+    success: true,
+    data: topTechnologies,
+  });
+});
+
 // ✅ Get all approved projects (public browsing)
 export const getApprovedProjects = asyncHandler(async (req, res) => {
   const {
@@ -89,6 +101,7 @@ export const getProjectById = asyncHandler(async (req, res) => {
 });
 
 // ✅ Download project file
+// ✅ Download project file
 export const downloadProject = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -104,16 +117,21 @@ export const downloadProject = asyncHandler(async (req, res) => {
   const project = rows[0];
 
   // Check download permissions:
-  // - Anyone can download approved projects
-  // - Only project owner can download their own pending/rejected projects
-  // - Admins can download projects from their department
+  // - Anyone (authenticated) can download approved projects
+  // - Project owner can download their own projects (any status)
+  // - Admins can download projects from their department (any status)
+  // - Super admins can download any project
   let canDownload = false;
 
   if (project.status === "approved") {
-    canDownload = true; // Anyone can download approved projects
+    canDownload = true; // Any authenticated user can download approved projects
   } else if (req.user) {
     // Check if user is the project owner
     if (project.author_id === req.user.id) {
+      canDownload = true;
+    }
+    // Check if user is super admin
+    else if (req.user.role === "super-admin") {
       canDownload = true;
     }
     // Check if user is admin from same department
@@ -175,6 +193,229 @@ export const downloadProject = asyncHandler(async (req, res) => {
       console.error("Error sending file", err);
     }
   });
+});
+
+// ✅ Preview project file (for admins to review without downloading)
+export const previewProject = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const [rows] = await Project.getProjectById(id);
+  if (!rows || rows.length === 0) {
+    return res.status(404).json({
+      success: false,
+      message: "Project not found",
+      code: "PROJECT_NOT_FOUND",
+    });
+  }
+
+  const project = rows[0];
+
+  // Check preview permissions (same as download but focused on admin review)
+  let canPreview = false;
+
+  if (project.status === "approved") {
+    canPreview = true; // Any authenticated user can preview approved projects
+  } else if (req.user) {
+    // Check if user is the project owner
+    if (project.author_id === req.user.id) {
+      canPreview = true;
+    }
+    // Check if user is super admin
+    else if (req.user.role === "super-admin") {
+      canPreview = true;
+    }
+    // Check if user is admin from same department
+    else if (
+      req.user.role === "admin" &&
+      req.user.department === project.department
+    ) {
+      canPreview = true;
+    }
+  }
+
+  if (!canPreview) {
+    return res.status(403).json({
+      success: false,
+      message: "You don't have permission to preview this project",
+      code: "PREVIEW_NOT_ALLOWED",
+    });
+  }
+
+  if (!project.file_path) {
+    return res.status(404).json({
+      success: false,
+      message: "File not found for this project",
+      code: "FILE_NOT_FOUND",
+    });
+  }
+
+  // Secure the path: ensure file_path is under uploads/projects
+  const uploadsDir = path.resolve("uploads", "projects");
+  const requestedPath = path.resolve(project.file_path);
+
+  if (!requestedPath.startsWith(uploadsDir)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid file path",
+      code: "INVALID_FILE_PATH",
+    });
+  }
+
+  if (!fs.existsSync(requestedPath)) {
+    return res.status(404).json({
+      success: false,
+      message: "File does not exist on server",
+      code: "FILE_NOT_EXISTS",
+    });
+  }
+
+  const filename = path.basename(requestedPath);
+  const fileExtension = path.extname(filename).toLowerCase();
+  const fileStats = fs.statSync(requestedPath);
+
+  // Get file info
+  const fileInfo = {
+    filename,
+    size: fileStats.size,
+    extension: fileExtension,
+    uploadDate: project.created_at,
+    canPreviewContent: false,
+    previewType: null,
+    content: null,
+  };
+
+  // Handle different file types for preview
+  try {
+    if (fileExtension === ".txt" || fileExtension === ".json") {
+      // Text files can be previewed directly
+      const content = fs.readFileSync(requestedPath, "utf8");
+      fileInfo.canPreviewContent = true;
+      fileInfo.previewType = "text";
+      fileInfo.content =
+        content.length > 10000
+          ? content.substring(0, 10000) + "\n\n... (truncated)"
+          : content;
+    } else if (fileExtension === ".pdf") {
+      // PDF files - show basic info and download prompt due to CSP restrictions
+      fileInfo.canPreviewContent = false;
+      fileInfo.previewType = "pdf";
+      fileInfo.message = "PDF file - download to view content";
+    } else if ([".zip", ".rar", ".7z"].includes(fileExtension)) {
+      // Archive files - show basic info only
+      fileInfo.canPreviewContent = false;
+      fileInfo.previewType = "archive";
+      fileInfo.message = "Archive file - download to extract and view contents";
+    } else if ([".doc", ".docx", ".ppt", ".pptx"].includes(fileExtension)) {
+      // Office documents - basic info only (would need additional libraries for content extraction)
+      fileInfo.canPreviewContent = false;
+      fileInfo.previewType = "office";
+      fileInfo.message = "Office document - download to view full content";
+    } else {
+      fileInfo.canPreviewContent = false;
+      fileInfo.previewType = "unknown";
+      fileInfo.message =
+        "File type not supported for preview - download to view";
+    }
+  } catch (error) {
+    console.error("Error reading file for preview:", error);
+    fileInfo.canPreviewContent = false;
+    fileInfo.previewType = "error";
+    fileInfo.message = "Error reading file content";
+  }
+
+  res.json({
+    success: true,
+    data: fileInfo,
+  });
+});
+
+// ✅ Serve file for preview (PDF, images, etc.)
+export const previewFile = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const [rows] = await Project.getProjectById(id);
+  if (!rows || rows.length === 0) {
+    return res.status(404).json({
+      success: false,
+      message: "Project not found",
+      code: "PROJECT_NOT_FOUND",
+    });
+  }
+
+  const project = rows[0];
+
+  // Same permission check as preview
+  let canPreview = false;
+
+  if (project.status === "approved") {
+    canPreview = true;
+  } else if (req.user) {
+    if (project.author_id === req.user.id) {
+      canPreview = true;
+    } else if (req.user.role === "super-admin") {
+      canPreview = true;
+    } else if (
+      req.user.role === "admin" &&
+      req.user.department === project.department
+    ) {
+      canPreview = true;
+    }
+  }
+
+  if (!canPreview) {
+    return res.status(403).json({
+      success: false,
+      message: "You don't have permission to preview this project",
+      code: "PREVIEW_NOT_ALLOWED",
+    });
+  }
+
+  if (!project.file_path) {
+    return res.status(404).json({
+      success: false,
+      message: "File not found for this project",
+      code: "FILE_NOT_FOUND",
+    });
+  }
+
+  const uploadsDir = path.resolve("uploads", "projects");
+  const requestedPath = path.resolve(project.file_path);
+
+  if (!requestedPath.startsWith(uploadsDir)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid file path",
+      code: "INVALID_FILE_PATH",
+    });
+  }
+
+  if (!fs.existsSync(requestedPath)) {
+    return res.status(404).json({
+      success: false,
+      message: "File does not exist on server",
+      code: "FILE_NOT_EXISTS",
+    });
+  }
+
+  const filename = path.basename(requestedPath);
+  const fileExtension = path.extname(filename).toLowerCase();
+
+  // Set appropriate content type for browser preview
+  let contentType = "application/octet-stream";
+  if (fileExtension === ".pdf") {
+    contentType = "application/pdf";
+  } else if (fileExtension === ".txt") {
+    contentType = "text/plain";
+  } else if (fileExtension === ".json") {
+    contentType = "application/json";
+  }
+
+  res.setHeader("Content-Type", contentType);
+  res.setHeader("Content-Disposition", 'inline; filename="' + filename + '"');
+
+  // Stream the file
+  const fileStream = fs.createReadStream(requestedPath);
+  fileStream.pipe(res);
 });
 
 // ===== STUDENT ENDPOINTS =====
@@ -292,12 +533,33 @@ export const editMyProject = asyncHandler(async (req, res) => {
     });
   }
 
-  await Project.updateProject(id, req.body);
+  // Prepare update data
+  const updateData = { ...req.body };
+
+  // Handle file upload if a new file is provided
+  if (req.file) {
+    // Delete old file if it exists
+    if (project.file_path && fs.existsSync(project.file_path)) {
+      try {
+        fs.unlinkSync(project.file_path);
+      } catch (error) {
+        console.error("Failed to delete old file:", error);
+        // Don't fail the update if old file deletion fails
+      }
+    }
+
+    // Update with new file path
+    updateData.file_path = req.file.path;
+  }
+
+  await Project.updateProject(id, updateData);
 
   const [updatedRows] = await Project.getProjectById(id);
   res.json({
     success: true,
-    message: "Project updated successfully",
+    message: req.file
+      ? "Project and file updated successfully"
+      : "Project updated successfully",
     data: updatedRows[0],
   });
 });
@@ -459,7 +721,7 @@ export const approveProject = asyncHandler(async (req, res) => {
 // ✅ Reject project (admin can only reject projects from their department)
 export const rejectProject = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { rejectionReason } = req.body;
+  const { reason } = req.body;
   const { department } = req.user;
 
   const [rows] = await Project.getProjectById(id);
@@ -492,8 +754,8 @@ export const rejectProject = asyncHandler(async (req, res) => {
   }
 
   const updateData = { status: "rejected" };
-  if (rejectionReason) {
-    updateData.rejectionReason = rejectionReason;
+  if (reason) {
+    updateData.rejectionReason = reason;
   }
 
   await Project.updateProject(id, updateData);
@@ -516,21 +778,34 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   let uploadTrends;
   let courseDistribution;
   let weeklyActivity;
+  let recentProjects;
+  let studentActivity;
+  let topTechnologies;
 
   if (role === "admin") {
     // Admin sees only their department data
     stats = await Project.getDepartmentDashboardStats(department);
 
-    // Get trends for department
-    uploadTrends = await Project.getUploadTrends();
-    courseDistribution = await Project.getCourseDistribution();
-    weeklyActivity = await Project.getWeeklyActivity();
+    // Get department-specific trends and data
+    uploadTrends = await Project.getDepartmentUploadTrends(department);
+    courseDistribution =
+      await Project.getDepartmentCourseDistribution(department);
+    weeklyActivity = await Project.getDepartmentWeeklyActivity(department);
+    recentProjects = await Project.getDepartmentRecentProjects(department, 10);
+    studentActivity = await Project.getDepartmentStudentActivity(department);
+    topTechnologies = await Project.getDepartmentTopTechnologies(
+      department,
+      10,
+    );
   } else {
     // Students and others see global stats
     stats = await Project.getDashboardStats();
     uploadTrends = await Project.getUploadTrends();
     courseDistribution = await Project.getCourseDistribution();
     weeklyActivity = await Project.getWeeklyActivity();
+    recentProjects = null; // Students don't need this
+    studentActivity = null; // Students don't need this
+    topTechnologies = await Project.getTopTechnologies(10);
   }
 
   res.json({
@@ -540,6 +815,31 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
       uploadTrends,
       courseDistribution,
       weeklyActivity,
+      recentProjects,
+      studentActivity,
+      topTechnologies,
     },
   });
+});
+
+// ✅ Get user profile statistics
+export const getUserStats = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    // Get user's project statistics
+    const userStats = await Project.getUserStats(userId);
+
+    res.json({
+      success: true,
+      data: userStats,
+    });
+  } catch (error) {
+    console.error("Error fetching user stats:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch user statistics",
+      code: "USER_STATS_ERROR",
+    });
+  }
 });

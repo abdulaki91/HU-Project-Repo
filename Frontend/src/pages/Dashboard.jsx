@@ -1,6 +1,7 @@
 import { Button } from "../components/Button";
 import { Users, FileText, Download, Eye } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import useFetchResource from "../hooks/useFetchResource";
 import ProjectViewModal from "../components/ProjectViewModal";
 import { StatsCard } from "../components/dashboard/StatsCard";
@@ -8,8 +9,14 @@ import { UploadTrendChart } from "../components/dashboard/UploadTrendChart";
 import { CourseDistributionChart } from "../components/dashboard/CourseDistributionChart";
 import { WeeklyActivityChart } from "../components/dashboard/WeeklyActivityChart";
 import { RecentProjectsTable } from "../components/dashboard/RecentProjectsTable";
+import { StudentActivityTable } from "../components/dashboard/StudentActivityTable";
+import { AdminRecentProjects } from "../components/dashboard/AdminRecentProjects";
+import { AdminQuickActions } from "../components/dashboard/AdminQuickActions";
+import { TopTechnologiesChart } from "../components/dashboard/TopTechnologiesChart";
 
 export function Dashboard() {
+  const navigate = useNavigate();
+
   // Fetch dynamic dashboard data
   const {
     data: dashboardData,
@@ -32,6 +39,9 @@ export function Dashboard() {
   const uploadTrends = dashboardData?.uploadTrends || [];
   const courseDistribution = dashboardData?.courseDistribution || [];
   const weeklyActivity = dashboardData?.weeklyActivity || [];
+  const recentProjects = dashboardData?.recentProjects || [];
+  const studentActivity = dashboardData?.studentActivity || [];
+  const topTechnologies = dashboardData?.topTechnologies || [];
 
   // Build stats cards from real data
   const statsCards = [
@@ -146,15 +156,25 @@ export function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-slate-900 dark:text-white mb-2">
-            Analytics Dashboard
+            {me?.role === "admin" ? "Admin Dashboard" : "Analytics Dashboard"}
           </h1>
           <p className="text-slate-600 dark:text-slate-400">
             {me?.role === "admin"
-              ? `Department overview for ${me.department}`
+              ? `Managing ${me.department} Department • ${stats.total_projects || 0} total projects • ${stats.pending_projects || 0} pending review`
               : "Overview of project submissions, engagement, and system performance"}
           </p>
         </div>
-        <Button>Export Report</Button>
+        <div className="flex items-center gap-3">
+          {me?.role === "admin" && stats.pending_projects > 0 && (
+            <Button
+              onClick={() => navigate("/pending")}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              Review {stats.pending_projects} Pending
+            </Button>
+          )}
+          <Button variant="outline">Export Report</Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -176,6 +196,11 @@ export function Dashboard() {
           isLoading={dashboardLoading}
           hasData={courseDistribution.length > 0}
         />
+        <TopTechnologiesChart
+          data={topTechnologies}
+          isLoading={dashboardLoading}
+          hasData={topTechnologies.length > 0}
+        />
       </div>
 
       <WeeklyActivityChart
@@ -184,12 +209,35 @@ export function Dashboard() {
         hasData={weeklyActivity.length > 0}
       />
 
-      <RecentProjectsTable
-        projects={projects}
-        isLoading={projectsLoading}
-        currentUser={me}
-        onViewProject={setViewingProject}
-      />
+      {/* Admin-specific sections */}
+      {me?.role === "admin" && (
+        <>
+          {/* Admin Quick Actions */}
+          <AdminQuickActions stats={stats} isLoading={dashboardLoading} />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <AdminRecentProjects
+              recentProjects={recentProjects}
+              isLoading={dashboardLoading}
+              onViewProject={setViewingProject}
+            />
+            <StudentActivityTable
+              studentActivity={studentActivity}
+              isLoading={dashboardLoading}
+            />
+          </div>
+        </>
+      )}
+
+      {/* Student/General sections */}
+      {me?.role !== "admin" && (
+        <RecentProjectsTable
+          projects={projects}
+          isLoading={projectsLoading}
+          currentUser={me}
+          onViewProject={setViewingProject}
+        />
+      )}
 
       {/* Project view modal */}
       <ProjectViewModal

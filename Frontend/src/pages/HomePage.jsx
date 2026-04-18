@@ -12,11 +12,16 @@ import {
 import { Badge } from "../components/Badge";
 import { useToast } from "../components/Toast";
 import { useNavigate } from "react-router-dom";
+import useFetchResource from "../hooks/useFetchResource";
 
 export function HomePage() {
   const toast = useToast();
   const navigate = useNavigate();
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // Fetch real top technologies data
+  const { data: topTechnologiesData, isLoading: techLoading } =
+    useFetchResource("project/top-technologies?limit=5", "top-technologies");
 
   useEffect(() => {
     setIsLoaded(true);
@@ -90,35 +95,28 @@ export function HomePage() {
     },
   ];
 
-  const topTechnologies = [
-    {
-      name: "React",
-      count: 234,
-      color: "bg-gradient-to-r from-cyan-500 to-blue-500",
-    },
-    {
-      name: "Python",
-      count: 198,
-      color: "bg-gradient-to-r from-blue-500 to-indigo-500",
-    },
-    {
-      name: "Java",
-      count: 167,
-      color: "bg-gradient-to-r from-red-500 to-pink-500",
-    },
-    {
-      name: "Node.js",
-      count: 145,
-      color: "bg-gradient-to-r from-green-500 to-emerald-500",
-    },
-    {
-      name: "Flutter",
-      count: 123,
-      color: "bg-gradient-to-r from-sky-500 to-cyan-500",
-    },
-  ];
+  // Process real top technologies data
+  const topTechnologies = (topTechnologiesData || []).map((tech, index) => {
+    const colors = [
+      "bg-gradient-to-r from-cyan-500 to-blue-500",
+      "bg-gradient-to-r from-blue-500 to-indigo-500",
+      "bg-gradient-to-r from-red-500 to-pink-500",
+      "bg-gradient-to-r from-green-500 to-emerald-500",
+      "bg-gradient-to-r from-sky-500 to-cyan-500",
+    ];
+    return {
+      name:
+        tech.name.charAt(0).toUpperCase() +
+        tech.name.slice(1).replace(/-/g, " "),
+      count: tech.count,
+      color: colors[index % colors.length],
+    };
+  });
 
-  const maxCount = Math.max(...topTechnologies.map((t) => t.count));
+  const maxCount =
+    topTechnologies.length > 0
+      ? Math.max(...topTechnologies.map((t) => t.count))
+      : 1;
 
   const handleExploreProjects = () => {
     navigate("/browse");
@@ -271,29 +269,50 @@ export function HomePage() {
               Top Technologies
             </h2>
             <div className="space-y-6">
-              {topTechnologies.map((tech, index) => (
-                <div key={index} className="group">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">
-                      {tech.name}
-                    </span>
-                    <span className="text-sm font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-full">
-                      {tech.count}
-                    </span>
+              {techLoading ? (
+                // Loading skeleton
+                [...Array(5)].map((_, index) => (
+                  <div key={index} className="animate-pulse">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20"></div>
+                      <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-8"></div>
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3"></div>
                   </div>
-                  <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
-                    <div
-                      className={`h-3 rounded-full ${tech.color} transition-all duration-1000 ease-out shadow-sm`}
-                      style={{
-                        width: isLoaded
-                          ? `${(tech.count / maxCount) * 100}%`
-                          : "0%",
-                        animationDelay: `${index * 200}ms`,
-                      }}
-                    />
+                ))
+              ) : topTechnologies.length > 0 ? (
+                topTechnologies.map((tech, index) => (
+                  <div key={index} className="group">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">
+                        {tech.name}
+                      </span>
+                      <span className="text-sm font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-full">
+                        {tech.count}
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
+                      <div
+                        className={`h-3 rounded-full ${tech.color} transition-all duration-1000 ease-out shadow-sm`}
+                        style={{
+                          width: isLoaded
+                            ? `${(tech.count / maxCount) * 100}%`
+                            : "0%",
+                          animationDelay: `${index * 200}ms`,
+                        }}
+                      />
+                    </div>
                   </div>
+                ))
+              ) : (
+                // No data state
+                <div className="text-center py-8">
+                  <Code className="h-12 w-12 text-slate-400 mx-auto mb-3" />
+                  <p className="text-slate-500 dark:text-slate-400">
+                    No technology data available yet
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
           </Card>
         </div>

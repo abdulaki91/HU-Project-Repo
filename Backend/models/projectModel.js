@@ -582,6 +582,46 @@ export const getUserProjectStats = async (userId) => {
   return rows[0];
 };
 
+// ✅ Get user profile statistics (formatted for profile page)
+export const getUserStats = async (userId) => {
+  const stats = await getUserProjectStats(userId);
+
+  // Format numbers for display
+  const formatNumber = (num) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+    if (num >= 1000) return (num / 1000).toFixed(1) + "K";
+    return num.toString();
+  };
+
+  // Calculate rating based on projects and downloads
+  // Rating formula: (approved projects * 2 + total downloads * 0.1) / (total projects + 1)
+  // Capped at 5.0, minimum 0.0
+  const approvedProjects = parseInt(stats.approvedProjects) || 0;
+  const totalProjects = parseInt(stats.totalProjects) || 0;
+  const totalDownloads = parseInt(stats.totalDownloads) || 0;
+
+  let rating = 0;
+  if (totalProjects > 0) {
+    rating =
+      (approvedProjects * 2 + totalDownloads * 0.1) / (totalProjects + 1);
+    rating = Math.min(5.0, Math.max(0.0, rating));
+  }
+
+  return {
+    projects: totalProjects,
+    projectsFormatted: formatNumber(totalProjects),
+    downloads: totalDownloads,
+    downloadsFormatted: formatNumber(totalDownloads),
+    rating: rating.toFixed(1),
+    views: parseInt(stats.totalViews) || 0,
+    viewsFormatted: formatNumber(parseInt(stats.totalViews) || 0),
+    approvedProjects,
+    pendingProjects: parseInt(stats.pendingProjects) || 0,
+    rejectedProjects: parseInt(stats.rejectedProjects) || 0,
+    lastProjectDate: stats.lastProjectDate,
+  };
+};
+
 // ✅ Get trending projects (most downloaded/viewed recently)
 export const getTrendingProjects = async (limit = 10, days = 7) => {
   const sql = `
@@ -928,6 +968,23 @@ export const getUploadTrends = async () => {
   return rows;
 };
 
+// Get monthly upload trends for specific department (last 6 months)
+export const getDepartmentUploadTrends = async (department) => {
+  const sql = `
+    SELECT 
+      DATE_FORMAT(created_at, '%b') as month,
+      COUNT(*) as uploads
+    FROM projects 
+    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+    AND department = ?
+    GROUP BY YEAR(created_at), MONTH(created_at)
+    ORDER BY created_at ASC
+  `;
+
+  const [rows] = await db.execute(sql, [department]);
+  return rows;
+};
+
 // Get course distribution
 export const getCourseDistribution = async () => {
   const sql = `
@@ -942,6 +999,42 @@ export const getCourseDistribution = async () => {
   `;
 
   const [rows] = await db.execute(sql);
+
+  // Add colors for the pie chart
+  const colors = [
+    "#3b82f6",
+    "#8b5cf6",
+    "#10b981",
+    "#f59e0b",
+    "#ef4444",
+    "#6b7280",
+    "#ec4899",
+    "#14b8a6",
+    "#f97316",
+    "#84cc16",
+  ];
+
+  return rows.map((row, index) => ({
+    ...row,
+    color: colors[index % colors.length],
+  }));
+};
+
+// Get course distribution for specific department
+export const getDepartmentCourseDistribution = async (department) => {
+  const sql = `
+    SELECT 
+      course as name,
+      COUNT(*) as value
+    FROM projects 
+    WHERE status = 'approved'
+    AND department = ?
+    GROUP BY course
+    ORDER BY value DESC
+    LIMIT 10
+  `;
+
+  const [rows] = await db.execute(sql, [department]);
 
   // Add colors for the pie chart
   const colors = [
@@ -1008,6 +1101,52 @@ export const getWeeklyActivity = async () => {
   );
 };
 
+// Get weekly activity data for specific department (last 7 days)
+export const getDepartmentWeeklyActivity = async (department) => {
+  const sql = `
+    SELECT 
+      DAYNAME(created_at) as day,
+      SUM(views) as views,
+      SUM(downloads) as downloads
+    FROM projects 
+    WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+    AND department = ?
+    GROUP BY DAYOFWEEK(created_at), DAYNAME(created_at)
+    ORDER BY DAYOFWEEK(created_at)
+  `;
+
+  const [rows] = await db.execute(sql, [department]);
+
+  // Ensure all days are present
+  const daysOfWeek = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const dayMap = {};
+
+  rows.forEach((row) => {
+    dayMap[row.day] = {
+      day: row.day.substring(0, 3), // Shorten day names
+      views: parseInt(row.views) || 0,
+      downloads: parseInt(row.downloads) || 0,
+    };
+  });
+
+  return daysOfWeek.map(
+    (day) =>
+      dayMap[day] || {
+        day: day.substring(0, 3),
+        views: 0,
+        downloads: 0,
+      },
+  );
+};
+
 // Get department-specific dashboard stats (for admins)
 export const getDepartmentDashboardStats = async (department) => {
   const sql = `
@@ -1025,4 +1164,126 @@ export const getDepartmentDashboardStats = async (department) => {
 
   const [rows] = await db.execute(sql, [department]);
   return rows[0];
+};
+
+// Get recent projects for admin's department
+export const getDepartmentRecentProjects = async (department, limit = 10) => {
+  const sql = `
+    SELECT 
+      id, title, author_name, course, batch, status, 
+      downloads, views, created_at, updated_at
+    FROM projects 
+    WHERE department = ?
+    ORDER BY created_at DESC 
+    LIMIT ?
+  `;
+
+  const [rows] = await db.execute(sql, [department, limit]);
+  return rows;
+};
+
+// Get department student activity summary
+export const getDepartmentStudentActivity = async (department) => {
+  const sql = `
+    SELECT 
+      u.firstName, u.lastName, u.email, u.batch,
+      COUNT(p.id) as total_projects,
+      COUNT(CASE WHEN p.status = 'approved' THEN 1 END) as approved_projects,
+      COUNT(CASE WHEN p.status = 'pending' THEN 1 END) as pending_projects,
+      SUM(p.downloads) as total_downloads,
+      SUM(p.views) as total_views,
+      MAX(p.created_at) as last_upload
+    FROM users u
+    LEFT JOIN projects p ON u.id = p.author_id AND p.department = ?
+    WHERE u.department = ? AND u.role = 'student'
+    GROUP BY u.id, u.firstName, u.lastName, u.email, u.batch
+    ORDER BY total_projects DESC, last_upload DESC
+    LIMIT 20
+  `;
+
+  const [rows] = await db.execute(sql, [department, department]);
+  return rows;
+};
+
+// Get top technologies from project tags (global)
+export const getTopTechnologies = async (limit = 10) => {
+  const sql = `
+    SELECT tags
+    FROM projects 
+    WHERE tags IS NOT NULL 
+    AND tags != '' 
+    AND tags != '[]'
+    AND status = 'approved'
+  `;
+
+  const [rows] = await db.execute(sql);
+
+  // Parse tags and count occurrences
+  const tagCounts = {};
+
+  rows.forEach((row) => {
+    try {
+      const tags = JSON.parse(row.tags);
+      if (Array.isArray(tags)) {
+        tags.forEach((tag) => {
+          const normalizedTag = tag.toLowerCase().trim();
+          if (normalizedTag) {
+            tagCounts[normalizedTag] = (tagCounts[normalizedTag] || 0) + 1;
+          }
+        });
+      }
+    } catch (e) {
+      // Skip invalid JSON
+    }
+  });
+
+  // Convert to array and sort by count
+  const sortedTags = Object.entries(tagCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+
+  return sortedTags;
+};
+
+// Get top technologies for specific department
+export const getDepartmentTopTechnologies = async (department, limit = 10) => {
+  const sql = `
+    SELECT tags
+    FROM projects 
+    WHERE tags IS NOT NULL 
+    AND tags != '' 
+    AND tags != '[]'
+    AND status = 'approved'
+    AND department = ?
+  `;
+
+  const [rows] = await db.execute(sql, [department]);
+
+  // Parse tags and count occurrences
+  const tagCounts = {};
+
+  rows.forEach((row) => {
+    try {
+      const tags = JSON.parse(row.tags);
+      if (Array.isArray(tags)) {
+        tags.forEach((tag) => {
+          const normalizedTag = tag.toLowerCase().trim();
+          if (normalizedTag) {
+            tagCounts[normalizedTag] = (tagCounts[normalizedTag] || 0) + 1;
+          }
+        });
+      }
+    } catch (e) {
+      // Skip invalid JSON
+    }
+  });
+
+  // Convert to array and sort by count
+  const sortedTags = Object.entries(tagCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+
+  return sortedTags;
 };

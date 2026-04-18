@@ -11,12 +11,14 @@ dotenv.config();
 
 import userRoute from "./routes/userRoute.js";
 import projectRoute from "./routes/projectRoute.js";
+import ratingRoute from "./routes/ratingRoute.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { generalRateLimit, securityHeaders } from "./middleware/validation.js";
 
 // Import table creation functions
 import { createUsersTable } from "./models/userModel.js";
 import { createProjectsTable } from "./models/projectModel.js";
+import { createRatingsTable } from "./models/ratingModel.js";
 
 const app = express();
 
@@ -103,6 +105,7 @@ app.get("/health", (req, res) => {
 // API Routes
 app.use("/api/user", userRoute);
 app.use("/api/project", projectRoute);
+app.use("/api/rating", ratingRoute);
 
 // Ping route for testing backend reachability
 app.get("/ping", (req, res) => {
@@ -173,6 +176,10 @@ async function initializeDatabase() {
     // Create projects table
     await createProjectsTable();
     console.log("✅ Projects table ready");
+
+    // Create ratings table
+    await createRatingsTable();
+    console.log("✅ Ratings table ready");
 
     console.log("🎉 Database initialization completed successfully!");
   } catch (error) {

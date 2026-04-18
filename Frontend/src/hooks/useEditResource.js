@@ -7,8 +7,28 @@ export default function useEditResource(resource, queryKey) {
   return useMutation({
     mutationFn: async (data) => {
       const { id, ...rest } = data;
-      const { data: response } = await api.put(`/${resource}/${id}`, rest);
-      return response;
+
+      // Handle FormData (for file uploads) vs regular JSON data
+      if (data instanceof FormData) {
+        // For FormData, we need to extract the ID and send the FormData as-is
+        const formDataId = data.get("id");
+        data.delete("id"); // Remove ID from FormData since it goes in URL
+
+        const { data: response } = await api.put(
+          `/${resource}/${formDataId}`,
+          data,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          },
+        );
+        return response;
+      } else {
+        // Regular JSON data
+        const { data: response } = await api.put(`/${resource}/${id}`, rest);
+        return response;
+      }
     },
     onSuccess: () => {
       const key = Array.isArray(queryKey) ? queryKey : [queryKey];

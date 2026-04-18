@@ -22,6 +22,10 @@ export function Profile() {
     "user/me",
     "user-me",
   );
+  const { data: userStats, isLoading: statsLoading } = useFetchResource(
+    "project/user/stats",
+    "user-stats",
+  );
   const navigate = useNavigate();
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -33,13 +37,26 @@ export function Profile() {
     navigate("/profile/settings");
   };
 
+  // Use real data from API or fallback to defaults
   const stats = [
-    { label: "Projects", value: "12", icon: BookOpen },
-    { label: "Downloads", value: "1.2K", icon: Download },
-    { label: "Rating", value: "4.8", icon: Star },
+    {
+      label: "Projects",
+      value: userStats?.projectsFormatted || "0",
+      icon: BookOpen,
+    },
+    {
+      label: "Downloads",
+      value: userStats?.downloadsFormatted || "0",
+      icon: Download,
+    },
+    {
+      label: "Rating",
+      value: userStats?.rating || "0.0",
+      icon: Star,
+    },
   ];
 
-  if (userLoading) {
+  if (userLoading || statsLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/30 to-indigo-50/50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
         <div className="text-center">

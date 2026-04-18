@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { Card } from "../components/Card";
 import ProjectCard from "../components/ProjectCard";
 import ProjectFilters from "../components/ProjectFilters";
-import StatusUpdateModal from "../components/StatusUpdateModal";
+import ProjectViewModal from "../components/ProjectViewModal";
 import useFetchResource from "../hooks/useFetchResource";
 import { useQueryClient } from "@tanstack/react-query";
-import useEditResource from "../hooks/useEditResource";
 import { useToast } from "../components/Toast";
+import { useAuth } from "../context/AuthContext";
+import { courses } from "../constants/courses";
 import {
   Clock,
   CheckCircle,
@@ -23,10 +24,10 @@ export function PendingProjects() {
   const [selectedCourse, setSelectedCourse] = useState("all");
   const [selectedBatch, setSelectedBatch] = useState("all");
   const [selectedProject, setSelectedProject] = useState(null);
-  const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const toast = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     setIsLoaded(true);
@@ -43,7 +44,6 @@ export function PendingProjects() {
     resource,
     queryKey,
   );
-  const editProject = useEditResource("project/admin/approve", ["projects"]);
 
   const queryClient = useQueryClient();
 
@@ -59,29 +59,8 @@ export function PendingProjects() {
     );
   });
 
-  const openStatusModal = (project) => {
+  const openProjectModal = (project) => {
     setSelectedProject(project);
-    setStatusModalOpen(true);
-  };
-
-  const handleStatusUpdate = async (projectId, status) => {
-    if (editProject.isPending) return;
-
-    try {
-      await editProject.mutateAsync({ id: projectId, status });
-      toast.success(`Project ${status} successfully!`, {
-        title: `Project ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-        description: `The project has been ${status} and the author will be notified.`,
-        duration: 4000,
-      });
-      queryClient.invalidateQueries(queryKey);
-    } catch (error) {
-      toast.error(`Failed to ${status} project. Please try again.`, {
-        title: "Action Failed",
-        description: "There was an error processing your request.",
-        duration: 5000,
-      });
-    }
   };
 
   const currentYear = new Date().getFullYear();
@@ -195,6 +174,7 @@ export function PendingProjects() {
           viewMode={viewMode}
           setViewMode={setViewMode}
           batches={batches}
+          courses={courses}
         />
       </Card>
 
@@ -243,7 +223,7 @@ export function PendingProjects() {
                   : "animate-slide-in-right"
               }`}
               style={{ animationDelay: `${index * 100}ms` }}
-              onClick={() => openStatusModal(project)}
+              onClick={() => openProjectModal(project)}
               title="Click to review and update project status"
             >
               <div className="relative group">
@@ -259,14 +239,18 @@ export function PendingProjects() {
         </div>
       )}
 
-      <StatusUpdateModal
-        open={statusModalOpen}
+      <ProjectViewModal
         project={selectedProject}
-        onClose={() => {
-          setStatusModalOpen(false);
+        open={!!selectedProject}
+        currentUser={user}
+        onClose={(changed) => {
           setSelectedProject(null);
+          if (changed) {
+            // Refresh the projects list
+            queryClient.invalidateQueries(queryKey);
+            queryClient.invalidateQueries(["dashboard-stats"]);
+          }
         }}
-        onSubmit={handleStatusUpdate}
       />
     </div>
   );

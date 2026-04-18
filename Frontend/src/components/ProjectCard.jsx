@@ -2,8 +2,9 @@ import React from "react";
 import { Card } from "./Card";
 import { Button } from "./Button";
 import { Badge } from "./Badge";
-import { Download, User, Calendar } from "lucide-react";
+import { Download, User, Calendar, Star } from "lucide-react";
 import { formatBytes } from "../utils/utils";
+import useFetchResource from "../hooks/useFetchResource";
 import {
   Select,
   SelectContent,
@@ -39,6 +40,13 @@ export default function ProjectCard({
     currentUser &&
     currentUser.role === "admin" &&
     currentUser.department === project.course;
+
+  // Fetch rating data for approved projects
+  const { data: ratingsData } = useFetchResource(
+    project.status === "approved" ? `rating/project/${project.id}` : null,
+    ["project-ratings", project.id],
+    { enabled: project.status === "approved" },
+  );
 
   return (
     <Card
@@ -107,6 +115,17 @@ export default function ProjectCard({
               <Download className="h-3 w-3" />
               {project.downloads}
             </div>
+            {project.status === "approved" &&
+              ratingsData?.stats &&
+              ratingsData.stats.totalRatings > 0 && (
+                <div className="flex items-center gap-1">
+                  <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
+                  <span>{ratingsData.stats.averageRating.toFixed(1)}</span>
+                  <span className="text-slate-400">
+                    ({ratingsData.stats.totalRatings})
+                  </span>
+                </div>
+              )}
             <div>Uploaded by: {project.author_name}</div>
           </div>
 

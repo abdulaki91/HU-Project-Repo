@@ -8,6 +8,7 @@ import api from "../api/api";
 import ProjectCard from "../components/ProjectCard";
 import ProjectFilters from "../components/ProjectFilters";
 import useFetchResource from "../hooks/useFetchResource";
+import { courses } from "../constants/courses";
 
 export function BrowseProjects() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -202,6 +203,7 @@ export function BrowseProjects() {
             viewMode={viewMode}
             setViewMode={setViewMode}
             batches={batches}
+            courses={courses}
           />
         </Card>
 

@@ -16,9 +16,12 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { generalRateLimit, securityHeaders } from "./middleware/validation.js";
 
 // Import table creation functions
-import { createUsersTable } from "./models/userModel.js";
-import { createProjectsTable } from "./models/projectModel.js";
-import { createRatingsTable } from "./models/ratingModel.js";
+import {
+  setupNewDatabase,
+  getDatabaseStatus,
+  handleDatabaseStatus,
+  handleDatabaseSetup,
+} from "./controllers/databaseController.js";
 
 const app = express();
 
@@ -102,6 +105,14 @@ app.get("/health", (req, res) => {
   });
 });
 
+// Database status endpoint
+app.get("/db-status", handleDatabaseStatus);
+
+// Database setup endpoint (for development)
+if (process.env.NODE_ENV !== "production") {
+  app.post("/db-setup", handleDatabaseSetup);
+}
+
 // API Routes
 app.use("/api/user", userRoute);
 app.use("/api/project", projectRoute);
@@ -167,25 +178,33 @@ process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 // Database initialization function
 async function initializeDatabase() {
   try {
-    console.log("🔄 Initializing database tables...");
+    console.log("🔄 Initializing database...");
 
-    // Create users table
-    await createUsersTable();
-    console.log("✅ Users table ready");
+    // Use enhanced database setup
+    const result = await setupNewDatabase();
 
-    // Create projects table
-    await createProjectsTable();
-    console.log("✅ Projects table ready");
+    if (result.success) {
+      console.log("🎉 Database initialization completed successfully!");
 
-    // Create ratings table
-    await createRatingsTable();
-    console.log("✅ Ratings table ready");
-
-    console.log("🎉 Database initialization completed successfully!");
+      // Log summary
+      Object.entries(result.tables).forEach(([tableName, info]) => {
+        console.log(
+          `✅ Table '${tableName}': ${info.status === "created" ? "Created" : "Verified"}`,
+        );
+      });
+    } else {
+      console.error("⚠️  Database initialization completed with warnings:");
+      result.errors.forEach((error) => {
+        console.error(
+          `   - ${error.table ? `[${error.table}]` : ""} ${error.error || error}`,
+        );
+      });
+    }
   } catch (error) {
-    console.error("❌ Database initialization failed:", error);
+    console.error("❌ Database initialization failed:", error.message);
+    console.error("💡 Try running: npm run setup-enhanced-db");
     console.error(
-      "Server will continue but some features may not work properly",
+      "Server will continue but database features may not work properly",
     );
   }
 }

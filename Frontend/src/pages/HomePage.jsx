@@ -13,6 +13,7 @@ import {
 import { Badge } from "../components/Badge";
 import { useToast } from "../components/Toast";
 import { useNavigate } from "react-router-dom";
+import { parseProjectTags } from "../utils/tagUtils";
 import useFetchResource from "../hooks/useFetchResource";
 import ProjectCard from "../components/ProjectCard";
 
@@ -75,20 +76,21 @@ export function HomePage() {
     },
   ];
 
-  const latestUploads = recentProjects.slice(0, 3).map((project) => ({
-    id: project.id,
-    title: project.title,
-    course: project.course,
-    batch: project.batch,
-    tags: Array.isArray(project.tags)
-      ? project.tags
-      : typeof project.tags === "string"
-        ? JSON.parse(project.tags || "[]").slice(0, 3)
-        : [],
-    uploadedBy: project.author_name,
-    uploadedAt: new Date(project.created_at).toLocaleDateString(),
-    featured: project.downloads > 50, // Mark as featured if popular
-  }));
+  const latestUploads = recentProjects.slice(0, 3).map((project) => {
+    // Safely parse tags using utility function
+    const tags = parseProjectTags(project.tags).slice(0, 3); // Limit to 3 tags for display
+
+    return {
+      id: project.id,
+      title: project.title,
+      course: project.course,
+      batch: project.batch,
+      tags: tags,
+      uploadedBy: project.author_name,
+      uploadedAt: new Date(project.created_at).toLocaleDateString(),
+      featured: project.downloads > 50, // Mark as featured if popular
+    };
+  });
 
   // Process real top technologies data
   const topTechnologies = (topTechnologiesData || []).map((tech, index) => {
@@ -253,7 +255,7 @@ export function HomePage() {
                       {project.course} • Batch {project.batch}
                     </p>
                     <div className="flex flex-wrap gap-2 mb-4">
-                      {project.tags.map((tag, idx) => (
+                      {(project.tags || []).map((tag, idx) => (
                         <Badge
                           key={idx}
                           variant="secondary"

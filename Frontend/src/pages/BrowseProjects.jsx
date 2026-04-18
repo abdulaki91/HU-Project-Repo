@@ -10,6 +10,7 @@ import ProjectCard from "../components/ProjectCard";
 import ProjectFilters from "../components/ProjectFilters";
 import useFetchResource from "../hooks/useFetchResource";
 import { courses } from "../constants/courses";
+import { searchInTags } from "../utils/tagUtils";
 
 export function BrowseProjects() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -135,9 +136,7 @@ export function BrowseProjects() {
     const description = String(project.description || "").toLowerCase();
     const inTitle = title.includes(q);
     const inDescription = description.includes(q);
-    const inTags = (project.tags || []).some((tag) =>
-      String(tag).toLowerCase().includes(q),
-    );
+    const inTags = searchInTags(project.tags, q);
     return inTitle || inDescription || inTags;
   });
 

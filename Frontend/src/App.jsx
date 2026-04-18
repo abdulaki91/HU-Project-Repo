@@ -19,6 +19,7 @@ import { MyProjects } from "./pages/MyProjects";
 import { Settings } from "./pages/Settings";
 import { PageNotFound } from "./pages/PgaeNotFound";
 import { Unauthorized } from "./pages/Unauthorized";
+import { MobileResponsiveTest } from "./pages/MobileResponsiveTest";
 
 // Route guards
 import { PrivateRoute } from "./components/PrivateRoute";
@@ -60,6 +61,10 @@ export default function App() {
                     <Route path="/" element={<HomePage />} />
                     <Route path="/upload" element={<UploadProject />} />
                     <Route path="/browse" element={<BrowseProjects />} />
+                    <Route
+                      path="/mobile-test"
+                      element={<MobileResponsiveTest />}
+                    />
 
                     {/* Admin and Super Admin routes */}
                     <Route

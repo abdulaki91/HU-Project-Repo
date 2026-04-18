@@ -14,6 +14,7 @@ import {
   Edit,
 } from "lucide-react";
 import { formatBytes } from "../utils/utils";
+import { formatTagsForDisplay } from "../utils/tagUtils";
 import useFetchResource from "../hooks/useFetchResource";
 import {
   Select,
@@ -124,27 +125,36 @@ export default function ProjectCard({
         </div>
 
         {/* Technologies */}
-        {(project.tags || []).length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {(project.tags || []).slice(0, 4).map((tag, idx) => (
-              <Badge
-                key={idx}
-                variant="secondary"
-                className="bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600 text-xs hover:scale-105 transition-transform duration-200"
-              >
-                {typeof tag === "object" ? tag.label || tag.value || tag : tag}
-              </Badge>
-            ))}
-            {(project.tags || []).length > 4 && (
-              <Badge
-                variant="secondary"
-                className="bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600 text-xs"
-              >
-                +{(project.tags || []).length - 4} more
-              </Badge>
-            )}
-          </div>
-        )}
+        {(() => {
+          const { displayTags, hasMore, remainingCount } = formatTagsForDisplay(
+            project.tags,
+            4,
+          );
+
+          return displayTags.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {displayTags.map((tag, idx) => (
+                <Badge
+                  key={idx}
+                  variant="secondary"
+                  className="bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600 text-xs hover:scale-105 transition-transform duration-200"
+                >
+                  {typeof tag === "object"
+                    ? tag.label || tag.value || tag
+                    : tag}
+                </Badge>
+              ))}
+              {hasMore && (
+                <Badge
+                  variant="secondary"
+                  className="bg-gradient-to-r from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600 text-xs"
+                >
+                  +{remainingCount} more
+                </Badge>
+              )}
+            </div>
+          ) : null;
+        })()}
 
         {/* Department Info */}
         <div className="text-sm text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-800/50 rounded-lg p-2 border border-slate-200/50 dark:border-slate-700/50">
